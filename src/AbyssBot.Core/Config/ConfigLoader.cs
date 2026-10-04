@@ -13,12 +13,16 @@ public sealed record LoadedConfig(
     string TargetsPath,
     string ImagesDirectory)
 {
+    /// <summary>사용자 선택(게임 창, 목적지, 기능 켜기)을 저장하는 파일. 업데이트 때 scenario.json을 덮어써도 유지된다.</summary>
+    public string UserPath => Path.Combine(BaseDirectory, "user.json");
+
     public string Describe()
     {
         static string Stamp(string p) => File.Exists(p) ? File.GetLastWriteTime(p).ToString("yyyy-MM-dd HH:mm:ss") : "없음";
         return $"설정 폴더: {BaseDirectory}\n" +
                $"  scenario.json 수정 시각 {Stamp(ScenarioPath)}\n" +
                $"  targets.json  수정 시각 {Stamp(TargetsPath)}\n" +
+               $"  user.json     수정 시각 {Stamp(Path.Combine(BaseDirectory, "user.json"))}\n" +
                $"  images 폴더: {ImagesDirectory}";
     }
 }
@@ -48,6 +52,13 @@ public static class ConfigLoader
         if (!File.Exists(targetsPath)) throw new ConfigException($"targets.json이 없습니다: {targetsPath}");
 
         var scenario = Deserialize<ScenarioConfig>(scenarioPath);
+        var userPath = Path.Combine(baseDirectory, "user.json");
+        if (File.Exists(userPath))
+        {
+            var user = Deserialize<UserSettings>(userPath);
+            if (user.Window is not null) scenario.Window = user.Window;
+            if (user.Options is not null) scenario.Options = user.Options;
+        }
         var targets = Deserialize<TargetsConfig>(targetsPath);
         targets.Targets = new Dictionary<string, TargetDef>(targets.Targets, StringComparer.Ordinal);
         scenario.Destinations = new Dictionary<string, DestinationSpec>(scenario.Destinations, StringComparer.Ordinal);
@@ -55,10 +66,11 @@ public static class ConfigLoader
         return new LoadedConfig(scenario, targets, baseDirectory, scenarioPath, targetsPath, imagesDir);
     }
 
-    public static void SaveScenario(LoadedConfig cfg)
+    /// <summary>사용자 선택만 user.json에 저장한다(scenario.json은 프로그램 기본값으로 두고 건드리지 않음).</summary>
+    public static void SaveUser(LoadedConfig cfg)
     {
-        var json = JsonSerializer.Serialize(cfg.Scenario, JsonOptions);
-        File.WriteAllText(cfg.ScenarioPath, json);
+        var json = JsonSerializer.Serialize(new UserSettings { Window = cfg.Scenario.Window, Options = cfg.Scenario.Options }, JsonOptions);
+        File.WriteAllText(cfg.UserPath, json);
     }
 
     private static T Deserialize<T>(string path)
@@ -90,11 +102,15 @@ public static class ConfigLoader
         foreach (var (mode, loop) in s.Loops)
         {
             if (loop.Count == 0) errors.Add($"loops.{mode}가 비어 있습니다.");
-            if (loop.Any(x => x is StepId.OpenMenu or StepId.SelectAbyss or StepId.SelectDestination))
-                errors.Add($"loops.{mode}에는 메뉴/어비스/목적지 선택 단계를 넣을 수 없습니다(최초 한 번만 수행).");
+            if (loop.Any(x => x is StepId.OpenMenu or StepId.SelectAbyss))
+                errors.Add($"loops.{mode}에는 메뉴 열기/어비스 선택 단계를 넣을 수 없습니다(최초 한 번만 수행).");
             for (int i = 0; i < loop.Count; i++)
-                if (loop[i] == StepId.Enter && (i == 0 || loop[i - 1] != StepId.OtherDungeon))
-                    errors.Add($"loops.{mode}: 반복 중 입장하기는 '다른 던전 가기' 바로 다음에만 올 수 있습니다.");
+            {
+                if (loop[i] == StepId.SelectDestination && (i == 0 || loop[i - 1] != StepId.OtherDungeon))
+                    errors.Add($"loops.{mode}: 반복 중 목적지 선택은 '다른 던전 가기' 바로 다음에만 올 수 있습니다.");
+                if (loop[i] == StepId.Enter && (i == 0 || loop[i - 1] is not (StepId.OtherDungeon or StepId.SelectDestination)))
+                    errors.Add($"loops.{mode}: 반복 중 입장하기는 '다른 던전 가기' 또는 목적지 선택 바로 다음에만 올 수 있습니다.");
+            }
         }
         if (s.Timing.MaxRetries < 0 || s.Timing.MaxRetries > 10) errors.Add("maxRetries는 0~10이어야 합니다.");
         if (s.Timing.DisappearConfirmFrames < 1) errors.Add("disappearConfirmFrames는 1 이상이어야 합니다.");
@@ -112,6 +128,13 @@ public static class ConfigLoader
         }
         if (errors.Count > 0) throw new ConfigException(string.Join("\n", errors));
     }
+}
+
+/// <summary>user.json: 사용자가 고른 게임 창과 실행 옵션.</summary>
+public sealed class UserSettings
+{
+    public WindowSpec? Window { get; set; }
+    public OptionsSpec? Options { get; set; }
 }
 
 public sealed class ConfigException(string message) : Exception(message);

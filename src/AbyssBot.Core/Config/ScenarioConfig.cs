@@ -14,7 +14,7 @@ public sealed class ScenarioConfig
     /// <summary>반복 방식별 순서.</summary>
     public Dictionary<RepeatMode, List<StepId>> Loops { get; set; } = new()
     {
-        [RepeatMode.OtherDungeon] = new() { StepId.WaitResult, StepId.OtherDungeon, StepId.Enter },
+        [RepeatMode.OtherDungeon] = new() { StepId.WaitResult, StepId.OtherDungeon, StepId.SelectDestination, StepId.Enter },
         [RepeatMode.Replay] = new() { StepId.WaitResult, StepId.Replay },
     };
 
@@ -40,7 +40,7 @@ public enum StepId
 /// <summary>보상 화면에서 다음 판으로 가는 방식.</summary>
 public enum RepeatMode
 {
-    /// <summary>'다른 던전 가기' → 목적지 화면(직전 목적지 선택 상태) → 입장하기.</summary>
+    /// <summary>'다른 던전 가기' → 어비스 목적지 목록 → 목적지 배너 → 입장하기.</summary>
     OtherDungeon,
     /// <summary>'다시 하기' → 바로 다음 전투.</summary>
     Replay,

@@ -128,12 +128,12 @@ public static class SetupService
         CreateNoWindow = true,
     });
 
-    /// <summary>게임 창 선택을 scenario.json(실행 파일 옆)에 저장한다.</summary>
+    /// <summary>게임 창 선택을 user.json(실행 파일 옆)에 저장한다.</summary>
     public static void SaveGameWindow(LoadedConfig cfg, string title, string process)
     {
         cfg.Scenario.Window.TitleContains = title;
         cfg.Scenario.Window.ProcessName = process;
-        ConfigLoader.SaveScenario(cfg);
+        ConfigLoader.SaveUser(cfg);
     }
 
     private static async Task<(int code, string output)> RunAsync(string file, string args)

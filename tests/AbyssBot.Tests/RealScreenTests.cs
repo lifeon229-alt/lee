@@ -96,3 +96,55 @@ public class RealResultScreenTests
         Assert.False(det.Detect(moved, "result_touch").Found);
     }
 }
+
+public class RealRewardScreenTests
+{
+    private static string Root => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+
+    private static Mat Reward()
+    {
+        var part = Cv2.ImRead(Path.Combine(AppContext.BaseDirectory, "Fixtures", "reward_640_950.png"));
+        var frame = new Mat(1080, 1920, MatType.CV_8UC3, Scalar.All(0));
+        part.CopyTo(new Mat(frame, new Rect(640, 950, part.Width, part.Height)));
+        return frame;
+    }
+
+    [Fact]
+    public void Other_dungeon_button_found_by_image_and_green_inside_right_button()
+    {
+        var cfg = ConfigLoader.Load(Path.Combine(Root, "config"));
+        using var images = new ImageLibrary(cfg.ImagesDirectory);
+        var det = new Detector(cfg.Targets, images, null); // OCR 없이도 사진+색으로 판정
+        using var f = Reward();
+        var d = det.Detect(f, "other_dungeon");
+        Assert.True(d.Found, d.Summary());
+        Assert.True(d.Color!.Matched, d.Summary());
+        var r = d.ButtonRect!.Value;
+        Assert.True(r.X >= 1073 && r.Right <= 1255, d.Summary()); // 오른쪽 버튼 안
+    }
+
+    [Fact]
+    public void Reward_screen_is_not_taken_as_result_screen_and_replay_needs_ocr()
+    {
+        var cfg = ConfigLoader.Load(Path.Combine(Root, "config"));
+        using var images = new ImageLibrary(cfg.ImagesDirectory);
+        var det = new Detector(cfg.Targets, images, null);
+        using var f = Reward();
+        Assert.False(det.Detect(f, "result_touch").Found);
+        var replay = det.Detect(f, "replay");
+        Assert.False(replay.Found);              // OCR 근거 없이는 누르지 않음
+    }
+
+    [Fact]
+    public void Green_of_reward_buttons_passes_color_rule()
+    {
+        var cfg = ConfigLoader.Load(Path.Combine(Root, "config"));
+        using var f = Reward();
+        foreach (var id in new[] { "replay", "other_dungeon" })
+        {
+            var t = cfg.Targets.Targets[id];
+            var c = ColorJudge.Measure(f, t.Region!.Resolve(1920, 1080), t.Color!);
+            Assert.True(c.Matched, id + " " + c.Describe());
+        }
+    }
+}

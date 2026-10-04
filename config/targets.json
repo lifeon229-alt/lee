@@ -85,19 +85,20 @@
       "passScore": 2
     },
     "replay": {
-      "description": "보상 화면 가운데 버튼 '다시 하기'(왼쪽 나가기·오른쪽 다른 던전 가기 제외): OCR 2점 + 초록 배경 1점 모두 필요",
+      "description": "보상 화면 가운데 버튼 '다시 하기'(왼쪽 나가기·오른쪽 다른 던전 가기 제외): OCR 2점 + 초록 배경 1점 모두 필요. 버튼 초록(청록)은 사용자 캡처에서 G-max(R,B)=60으로 기준 60에 걸쳐 있어 40으로 낮춤",
       "region": [858, 955, 1062, 1065],
       "ocr": { "texts": ["다시하기"], "mode": "fuzzy" },
-      "color": { "allowed": ["green"], "minDominance": 60 },
+      "color": { "allowed": ["green"], "minDominance": 40 },
       "require": ["ocr", "color"],
       "passScore": 3
     },
     "other_dungeon": {
-      "description": "보상 화면 오른쪽 버튼 '다른 던전 가기': OCR 2점 + 초록 배경 1점 모두 필요",
+      "description": "보상 화면 오른쪽 버튼 '다른 던전 가기': 초록 배경 1점 필수 + (OCR 2점 또는 a_other.png 2점). 초록은 사용자 캡처에서 G-max(R,B)=59 → 기준 40. a_other.png: 자기 버튼 1.000, 다시 하기·나가기 버튼 0.33 → 기준 0.80",
       "region": [1063, 955, 1275, 1065],
       "ocr": { "texts": ["다른던전가기"], "mode": "fuzzy" },
-      "color": { "allowed": ["green"], "minDominance": 60 },
-      "require": ["ocr", "color"],
+      "images": [ { "file": "a_other.png", "threshold": 0.80 } ],
+      "color": { "allowed": ["green"], "minDominance": 40 },
+      "require": ["color"],
       "passScore": 3
     },
     "skip": {

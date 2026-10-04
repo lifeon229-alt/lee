@@ -186,10 +186,22 @@ public class EngineFlowTests
         Assert.Equal(new[]
         {
             "ESC", "click:abyss_menu", "click:dest_husang", "SPACE",
-            "click:result_touch", "click:other_dungeon", "SPACE",
-            "click:result_touch", "click:other_dungeon", "SPACE",
+            "click:result_touch", "click:other_dungeon", "click:dest_husang", "SPACE",
+            "click:result_touch", "click:other_dungeon", "click:dest_husang", "SPACE",
         }, rig.Game.Inputs);
         Assert.DoesNotContain("click:replay", rig.Game.Inputs);
+    }
+
+    [Fact]
+    public void OtherDungeon_to_already_selected_entry_screen_does_not_click_banner()
+    {
+        var rig = new Rig();
+        rig.Game.BattleLength = 10;
+        rig.Game.AfterOtherDungeon = "destSelected"; // 입장 화면(제목+입장하기)이 바로 나오는 경우
+        rig.Time.CancelWhen = () => rig.Game.Inputs.Count(i => i == "SPACE") >= 2 && rig.Game.State == "battle";
+        rig.Run();
+        Assert.Single(rig.Game.Inputs, i => i == "click:dest_husang"); // 최초 입장 때 한 번뿐
+        Assert.Equal(2, rig.Game.Inputs.Count(i => i == "SPACE"));
     }
 
     [Fact]

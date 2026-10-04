@@ -118,12 +118,14 @@ public sealed class AbyssEngine
                     r = step switch
                     {
                         StepId.OpenMenu => OpenMenu(),
-                        StepId.SelectAbyss => ClickAndAdvance(TargetIds.AbyssMenu, new[] { _destTarget }, "어비스 메뉴", "목적지 목록"),
-                        StepId.SelectDestination => ClickAndAdvance(_destTarget, new[] { _destTitle, TargetIds.Enter },
-                            "목적지 배너", "입장 화면(목적지 제목+입장하기)"),
-                        // 다른 던전 가기 → 직전 목적지의 입장 화면(제목+입장하기). 배너를 다시 누르지 않는다.
-                        StepId.OtherDungeon => ClickAndAdvance(TargetIds.OtherDungeon, new[] { _destTitle, TargetIds.Enter },
-                            "다른 던전 가기", "입장 화면(목적지 제목+입장하기)", T.ReplayTimeoutMs),
+                        StepId.SelectAbyss => ClickAndAdvance(TargetIds.AbyssMenu, new[] { new[] { _destTarget } }, "어비스 메뉴", "목적지 목록"),
+                        // 이미 잠긴 목적지의 입장 화면(제목+입장하기)이면 배너를 누르지 않고 성공으로 본다.
+                        StepId.SelectDestination => ClickAndAdvance(_destTarget, new[] { new[] { _destTitle, TargetIds.Enter } },
+                            "목적지 배너", "입장 화면(목적지 제목+입장하기)", acceptBeforeClick: true),
+                        // 다른 던전 가기 → 어비스 목적지 목록(배너) 또는 잠긴 목적지의 입장 화면. 다음 단계(목적지 선택)가 둘 다 처리한다.
+                        StepId.OtherDungeon => ClickAndAdvance(TargetIds.OtherDungeon,
+                            new[] { new[] { _destTarget }, new[] { _destTitle, TargetIds.Enter } },
+                            "다른 던전 가기", "어비스 목적지 화면", T.ReplayTimeoutMs),
                         StepId.Enter => EnterDungeon(),
                         StepId.WaitResult => WaitResult(),
                         StepId.Replay => Replay(),
@@ -242,7 +244,10 @@ public sealed class AbyssEngine
     /// <summary>
     /// 클릭 후에도 남아 있을 수 있는 대상(메뉴 아이콘, 목적지 배너): 사진 소멸이 아니라 다음 화면 등장으로 성공을 확인한다.
     /// </summary>
-    private StepResult ClickAndAdvance(string targetId, string[] nextIds, string label, string nextLabel, int? timeoutMs = null)
+    /// <param name="nextGroups">다음 화면 근거 묶음. 묶음 하나의 대상이 한 캡처에서 모두 확인되면 성공.</param>
+    /// <param name="acceptBeforeClick">클릭 전에 이미 다음 화면이면 입력 없이 성공으로 볼지.</param>
+    private StepResult ClickAndAdvance(string targetId, string[][] nextGroups, string label, string nextLabel,
+        int? timeoutMs = null, bool acceptBeforeClick = false)
     {
         var timeout = timeoutMs ?? T.GeneralButtonTimeoutMs;
         var deadline = _clock.Now.AddMilliseconds(timeout);
@@ -259,9 +264,11 @@ public sealed class AbyssEngine
                     if (aux.Acted) continue;
                     if (aux.Blocked) goto next;
 
-                    if (clicks > 0 && AllFound(cap, nextIds, out var next))
+                    if ((clicks > 0 || acceptBeforeClick) && AnyGroupFound(cap, nextGroups, out var next))
                     {
-                        _log.Info($"{nextLabel} 확인 → {label} 클릭 성공. {next}");
+                        _log.Info(clicks > 0
+                            ? $"{nextLabel} 확인 → {label} 클릭 성공. {next}"
+                            : $"이미 {nextLabel} — {label} 클릭 없이 진행. {next}");
                         return StepResult.Ok;
                     }
                     var d = Detect(cap, targetId);
@@ -271,7 +278,7 @@ public sealed class AbyssEngine
                             return StepResult.Fail($"{label}을(를) {clicks}번 눌렀지만 {nextLabel}이(가) 나타나지 않음");
                         if (!SendClick(cap, d, label, out var why)) return StepResult.Fail(why);
                         clicks++;
-                        if (WaitForAll(nextIds, T.TransitionWaitMs, out var nd))
+                        if (WaitForAny(nextGroups, T.TransitionWaitMs, out var nd))
                         {
                             _log.Info($"{nextLabel} 확인 → {label} 클릭 성공. {nd}");
                             return StepResult.Ok;
@@ -686,7 +693,15 @@ public sealed class AbyssEngine
         return true;
     }
 
-    private bool WaitForAll(string[] ids, int timeoutMs, out string summary)
+    private bool AnyGroupFound(Frame cap, string[][] groups, out string summary)
+    {
+        foreach (var g in groups)
+            if (AllFound(cap, g, out summary)) return true;
+        summary = "";
+        return false;
+    }
+
+    private bool WaitForAny(string[][] groups, int timeoutMs, out string summary)
     {
         var until = _clock.Now.AddMilliseconds(timeoutMs);
         summary = "";
@@ -695,7 +710,7 @@ public sealed class AbyssEngine
             Wait(T.PostInputCheckMs);
             using var cap = CaptureFrame(out var fatal);
             if (fatal is not null || cap is null) continue;
-            if (AllFound(cap, ids, out summary)) return true;
+            if (AnyGroupFound(cap, groups, out summary)) return true;
         } while (_clock.Now < until);
         return false;
     }

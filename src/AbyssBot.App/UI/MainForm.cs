@@ -297,7 +297,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         o.MealEnabled = meal;
         o.ReconnectEnabled = reconnect;
         o.AutoResumeEnabled = auto;
-        try { ConfigLoader.SaveScenario(cfg); } catch (IOException e) { _logger.Warn("scenario.json 저장 실패: " + e.Message); }
+        try { ConfigLoader.SaveUser(cfg); } catch (IOException e) { _logger.Warn("user.json 저장 실패: " + e.Message); }
         _logger.Info(cfg.Describe());
 
         string? ocrProblem = null;

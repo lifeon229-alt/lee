@@ -103,3 +103,30 @@ public class ResumeTests
         Assert.Equal(RunOutcome.UserStopped, r.Outcome);
     }
 }
+
+public class UserSettingsTests
+{
+    [Fact]
+    public void User_choices_survive_scenario_overwrite()
+    {
+        var src = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../config"));
+        var dir = Path.Combine(Path.GetTempPath(), "abyss_user_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.Copy(Path.Combine(src, "scenario.json"), Path.Combine(dir, "scenario.json"));
+            File.Copy(Path.Combine(src, "targets.json"), Path.Combine(dir, "targets.json"));
+            var cfg = ConfigLoader.Load(dir);
+            cfg.Scenario.Window.TitleContains = "마비노기 모바일";
+            cfg.Scenario.Options.Destination = "kwanggi";
+            ConfigLoader.SaveUser(cfg);
+            // 업데이트로 scenario.json을 새 파일로 덮어씀
+            File.Copy(Path.Combine(src, "scenario.json"), Path.Combine(dir, "scenario.json"), overwrite: true);
+            var again = ConfigLoader.Load(dir);
+            Assert.Equal("마비노기 모바일", again.Scenario.Window.TitleContains);
+            Assert.Equal("kwanggi", again.Scenario.Options.Destination);
+            Assert.Equal(4, again.Scenario.Loops[RepeatMode.OtherDungeon].Count); // 순서는 새 기본값
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+}

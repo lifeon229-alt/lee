@@ -21,7 +21,7 @@ public sealed class FakeGame
     public Func<int, string, bool>? Flicker;
     public int Captures;
     /// <summary>다른 던전 가기 후 나타나는 화면(기본: 직전 목적지 선택 + 입장하기).</summary>
-    public string AfterOtherDungeon = "destSelected";
+    public string AfterOtherDungeon = "destList";
     public readonly List<string> Inputs = new();
 
     public static readonly Dictionary<string, Rect> Buttons = new()

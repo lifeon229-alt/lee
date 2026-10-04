@@ -365,7 +365,7 @@ public class TextAndRegionTests
         Assert.True((replay & other).Width <= 0);
         Assert.True(replay.X > 849);   // 나가기 버튼 오른쪽 끝(캡처 기준) 밖
         Assert.Equal(RepeatMode.OtherDungeon, cfg.Scenario.Options.RepeatMode);
-        Assert.Equal(new[] { StepId.WaitResult, StepId.OtherDungeon, StepId.Enter }, cfg.Scenario.Loops[RepeatMode.OtherDungeon]);
+        Assert.Equal(new[] { StepId.WaitResult, StepId.OtherDungeon, StepId.SelectDestination, StepId.Enter }, cfg.Scenario.Loops[RepeatMode.OtherDungeon]);
         Assert.True(cfg.Targets.Targets["other_dungeon"].IsConfigured);
     }
 }

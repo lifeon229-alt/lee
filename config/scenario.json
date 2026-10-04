@@ -7,7 +7,7 @@
   },
   "firstRun": ["OpenMenu", "SelectAbyss", "SelectDestination", "Enter"],
   "loops": {
-    "OtherDungeon": ["WaitResult", "OtherDungeon", "Enter"],
+    "OtherDungeon": ["WaitResult", "OtherDungeon", "SelectDestination", "Enter"],
     "Replay": ["WaitResult", "Replay"]
   },
   "destinations": {
