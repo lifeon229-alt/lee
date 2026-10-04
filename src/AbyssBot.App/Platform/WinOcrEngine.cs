@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using AbyssBot.Core.Ocr;
 using OpenCvSharp;
@@ -16,6 +17,16 @@ public sealed class WinOcrEngine : IOcrEngine
     private WinOcrEngine(WinOcr engine) => _engine = engine;
 
     public static WinOcrEngine? TryCreate(out string? problem)
+    {
+        try { return Create(out problem); }
+        catch (Exception e) when (e is COMException or TypeLoadException or PlatformNotSupportedException or InvalidCastException)
+        {
+            problem = "Windows OCR을 불러오지 못했습니다: " + e.Message;
+            return null;
+        }
+    }
+
+    private static WinOcrEngine? Create(out string? problem)
     {
         var lang = new Language("ko");
         if (!WinOcr.IsLanguageSupported(lang))

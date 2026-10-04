@@ -22,16 +22,21 @@ public sealed class VerifyForm : Form
     {
         _cfg = cfg; _ocr = ocr;
         Text = "화면 검증 (입력 없음)";
+        BackColor = Theme.Bg;
+        ForeColor = Theme.Text;
+        Font = Theme.F(9.5f);
+        _files.BackColor = Theme.Card; _files.ForeColor = Theme.Text; _files.BorderStyle = BorderStyle.None;
+        _report.BackColor = Theme.Card; _report.ForeColor = Theme.Text; _report.BorderStyle = BorderStyle.None;
         Width = 1200; Height = 860;
 
-        var open = new Button { Text = "화면 사진 열기…", AutoSize = true };
+        var open = new PillButton("화면 사진 열기…", Theme.Accent) { Width = 150, Height = 36 };
         open.Click += async (_, _) => await OpenAsync();
-        var table = new Button { Text = "사진 점수표 저장(TSV)", AutoSize = true };
+        var table = new PillButton("사진 점수표 저장", Theme.Field) { Width = 150, Height = 36 };
         table.Click += (_, _) => SaveTable();
-        var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true };
+        var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), BackColor = Theme.Bg };
         top.Controls.AddRange(new Control[] { open, table, new Label
         {
-            AutoSize = true, Padding = new Padding(8, 6, 0, 0),
+            AutoSize = true, Padding = new Padding(8, 10, 0, 0), ForeColor = Theme.Sub,
             Text = "노랑=탐색 영역, 초록=합격 영역, 하늘=사진 일치, 자홍=OCR 일치, 빨강=클릭 대상 버튼",
         } });
 

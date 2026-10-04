@@ -19,17 +19,24 @@
 실행 중에는 **실행 파일 옆**의 `scenario.json`, `targets.json`, `images/`만 읽는다. 시작할 때마다 다시 읽고, 로그에 경로와 수정 시각을 남긴다.
 빌드할 때 `config/`의 파일이 더 새로우면 실행 파일 옆으로 복사된다. 실행 파일 옆 파일을 직접 고쳤다면 개발 폴더에도 반영해 둔다.
 
-## 준비
+## 설치와 사용 (배포 묶음)
 
-1. Windows 10/11 x64, [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (빌드 시 .NET 8 SDK)
-2. 한국어 OCR: 설정 → 시간 및 언어 → 언어 → 한국어 추가(광학 문자 인식 포함)
-3. Interception: 드라이버를 `install-interception.exe /install`로 설치하고 **재부팅**, x64 `interception.dll`을 `AbyssBot.exe` 옆에 둔다.
-   DLL 복사만으로는 설치가 끝난 것이 아니다. 프로그램의 **입력 장치 점검** 버튼으로 x64·DLL·드라이버·키보드/마우스 장치·관리자 권한을 확인한다.
-4. 관리자 권한으로 실행된다(manifest).
+`build/package.sh`(또는 Windows에서 `build/package.ps1`)로 만든 `AbyssBot.zip`을 풀고 `AbyssBot.exe`를 실행한다.
+.NET 런타임은 exe 안에 포함되어 따로 설치할 필요가 없다. 자세한 순서는 `build/사용법.txt`.
+
+처음 실행하면 **준비 상태** 창이 열린다. 빨간 항목은 버튼으로 해결한다.
+- **한국어 OCR**: [설치] → `Add-WindowsCapability -Online -Name Language.OCR~~~ko-KR~0.0.1.0`
+- **입력 드라이버(Interception)**: [설치] → 공식 GitHub(oblitum/Interception v1.0.1)에서 받아 **SHA256을 확인**한 뒤 x64 DLL 복사 + 드라이버 설치 → 재부팅
+- **게임 창**: 열린 창 목록에서 골라 저장(`scenario.json`의 window)
+- 관리자 권한, 목적지 배너 사진도 함께 점검한다.
+
+## 직접 빌드
+
+1. Windows 10/11 x64, .NET 8 SDK
+2. 관리자 권한으로 실행된다(manifest).
 
 ```
 dotnet build -c Release src/AbyssBot.App
-# 결과: src/AbyssBot.App/bin/Release/net8.0-windows10.0.19041.0/win-x64/AbyssBot.exe
 dotnet test tests/AbyssBot.Tests      # 엔진/인식 규칙 시험
 ```
 
