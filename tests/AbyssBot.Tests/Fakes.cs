@@ -1,0 +1,204 @@
+using System.Runtime.CompilerServices;
+using AbyssBot.Core.Config;
+using AbyssBot.Core.Engine;
+using AbyssBot.Core.Logging;
+using AbyssBot.Core.Vision;
+using OpenCvSharp;
+
+namespace AbyssBot.Tests;
+
+/// <summary>입력에 반응하는 가상 게임. 화면은 '보이는 대상 이름' 집합으로 표현한다.</summary>
+public sealed class FakeGame
+{
+    public string State = "town";
+    public int BattleFramesLeft;
+    public int BattleLength = 3;
+    public bool Foreground = true;
+    public HashSet<string> Extra = new();
+    /// <summary>특정 상태에서 입력을 무시(버튼이 남는 버그 재현).</summary>
+    public HashSet<string> IgnoreInputIn = new();
+    /// <summary>캡처 번호별로 한 번 인식 실패(깜빡임)를 흉내.</summary>
+    public Func<int, string, bool>? Flicker;
+    public int Captures;
+    public readonly List<string> Inputs = new();
+
+    public static readonly Dictionary<string, Rect> Buttons = new()
+    {
+        [TargetIds.AbyssMenu] = new Rect(500, 300, 60, 60),
+        ["dest_husang"] = new Rect(150, 500, 200, 80),
+        ["dest_kwanggi"] = new Rect(150, 600, 200, 80),
+        [TargetIds.Enter] = new Rect(350, 960, 120, 40),
+        [TargetIds.ResultTouch] = new Rect(300, 950, 200, 30),
+        [TargetIds.Replay] = new Rect(370, 950, 100, 50),
+        [TargetIds.Skip] = new Rect(700, 80, 90, 40),
+        [TargetIds.ReviveButton] = new Rect(350, 600, 120, 50),
+        [TargetIds.ReconnectRetry] = new Rect(350, 650, 120, 50),
+        [TargetIds.MealButton] = new Rect(50, 700, 50, 50),
+        [TargetIds.Chat] = new Rect(100, 1000, 300, 30),
+    };
+
+    public HashSet<string> Visible()
+    {
+        var v = State switch
+        {
+            "town" => new HashSet<string> { TargetIds.Chat },
+            "menu" => new HashSet<string> { TargetIds.MenuOpen, TargetIds.AbyssMenu, TargetIds.Chat },
+            "destList" => new HashSet<string> { "dest_husang", "dest_kwanggi" },
+            "destSelected" => new HashSet<string> { "dest_husang", "dest_kwanggi", TargetIds.Enter },
+            "battle" => new HashSet<string> { TargetIds.Chat },
+            "result" => new HashSet<string> { TargetIds.ResultTouch },
+            "reward" => new HashSet<string> { TargetIds.Replay },
+            "rewardNoButton" => new HashSet<string>(),
+            "unknown" => new HashSet<string>(),
+            _ => new HashSet<string>(),
+        };
+        v.UnionWith(Extra);
+        return v;
+    }
+
+    public void OnCapture()
+    {
+        Captures++;
+        if (State == "battle" && --BattleFramesLeft <= 0) State = "result";
+    }
+
+    public void OnKey(ushort scan)
+    {
+        Inputs.Add(ScanCode.Name(scan));
+        if (IgnoreInputIn.Contains(State)) return;
+        if (scan == ScanCode.Esc && State == "town") State = "menu";
+        else if (scan == ScanCode.Space && State == "destSelected") StartBattle();
+    }
+
+    public void OnClick(Point p)
+    {
+        var hit = Buttons.FirstOrDefault(b => Visible().Contains(b.Key) && b.Value.Contains(p)).Key ?? "빈자리";
+        Inputs.Add("click:" + hit);
+        if (IgnoreInputIn.Contains(State)) return;
+        switch (State, hit)
+        {
+            case ("menu", TargetIds.AbyssMenu): State = "destList"; break;
+            case ("destList", "dest_husang"): State = "destSelected"; break;
+            case ("result", TargetIds.ResultTouch): State = "reward"; break;
+            case ("reward", TargetIds.Replay): StartBattle(); break;
+        }
+        if (hit == TargetIds.Skip) Extra.Remove(TargetIds.Skip);
+    }
+
+    private void StartBattle() { State = "battle"; BattleFramesLeft = BattleLength; }
+}
+
+public sealed class FakeDetector(FakeGame game) : IDetector
+{
+    public readonly ConditionalWeakTable<Mat, HashSet<string>> Screens = new();
+    public HashSet<string> Unconfigured = new() { TargetIds.ReviveButton, TargetIds.ReviveState, TargetIds.RevivePurchase, TargetIds.MealButton, TargetIds.ReconnectNotice, TargetIds.ReconnectRetry };
+
+    public bool IsConfigured(string id) => !Unconfigured.Contains(id);
+
+    public Detection Detect(Mat frame, string id)
+    {
+        if (!IsConfigured(id)) return Detection.NotConfigured(id);
+        var visible = Screens.TryGetValue(frame, out var v) ? v : new HashSet<string>();
+        bool found = visible.Contains(id);
+        if (found && game.Flicker?.Invoke(game.Captures, id) == true) found = false;
+        return new Detection
+        {
+            TargetId = id, Found = found, Score = found ? 2 : 0, PassScore = 2,
+            ButtonRect = found ? FakeGame.Buttons.GetValueOrDefault(id, new Rect(10, 10, 20, 20)) : null,
+        };
+    }
+}
+
+public sealed class FakeWindow(FakeGame game, FakeDetector det) : IGameWindow
+{
+    public CaptureResult Capture()
+    {
+        if (!game.Foreground) return CaptureResult.Inactive("다른 창 활성");
+        game.OnCapture();
+        var m = new Mat(4, 4, MatType.CV_8UC3, Scalar.All(0));
+        det.Screens.Add(m, game.Visible());
+        return CaptureResult.Ok(new Frame(m, new Point(0, 0), DateTime.Now));
+    }
+
+    public bool IsForeground() => game.Foreground;
+    public Point? CurrentOrigin() => new Point(0, 0);
+}
+
+public sealed class FakeInput(FakeGame game) : IInputDevice
+{
+    public bool FailNext;
+    public InputResult PressKey(ushort scanCode, int holdMs)
+    {
+        if (FailNext) { FailNext = false; return InputResult.Failure("드라이버 응답 없음"); }
+        game.OnKey(scanCode); return InputResult.Success();
+    }
+
+    public InputResult Click(Point screen, int holdMs)
+    {
+        if (FailNext) { FailNext = false; return InputResult.Failure("드라이버 응답 없음"); }
+        game.OnClick(screen); return InputResult.Success();
+    }
+}
+
+/// <summary>대기하면 가상 시간이 흐른다. 정지 조건을 걸 수 있다.</summary>
+public sealed class FakeTime : IClock, IWaiter
+{
+    public DateTime Now { get; private set; } = new(2026, 1, 1, 12, 0, 0);
+    public Func<bool>? CancelWhen;
+    public CancellationTokenSource Cts = new();
+    public Action? OnWait;
+
+    public void Wait(int ms, CancellationToken ct)
+    {
+        Now = Now.AddMilliseconds(ms);
+        OnWait?.Invoke();
+        if (CancelWhen?.Invoke() == true) Cts.Cancel();
+        ct.ThrowIfCancellationRequested();
+    }
+
+    public void Advance(TimeSpan t) => Now += t;
+}
+
+public sealed class NullEvidence : IEvidenceStore
+{
+    public readonly List<string> Labels = new();
+    public string? Save(Mat? frame, string label, object report) { Labels.Add(label); return label; }
+}
+
+public sealed class Rig
+{
+    public readonly FakeGame Game = new();
+    public readonly FakeDetector Det;
+    public readonly FakeWindow Win;
+    public readonly FakeInput Input;
+    public readonly FakeTime Time = new();
+    public readonly NullEvidence Evidence = new();
+    public readonly BotLogger Log;
+    public readonly List<string> Lines = new();
+    public readonly ScenarioConfig Scenario = DefaultScenario();
+
+    public Rig()
+    {
+        Det = new FakeDetector(Game);
+        Win = new FakeWindow(Game, Det);
+        Input = new FakeInput(Game);
+        Log = new BotLogger(null, new LoggingSpec(), () => Time.Now);
+        Log.Line += l => Lines.Add(l.ToString());
+    }
+
+    public static ScenarioConfig DefaultScenario()
+    {
+        var s = new ScenarioConfig();
+        s.Destinations["husang"] = new DestinationSpec { DisplayName = "허상의 정박지", Target = "dest_husang" };
+        s.Destinations["kwanggi"] = new DestinationSpec { DisplayName = "광기의 동굴", Target = "dest_kwanggi" };
+        return s;
+    }
+
+    public AbyssEngine Engine() => new(Scenario, Det, Win, Input, Time, Time, Log, Evidence, rng: new Random(1));
+
+    public RunResult Run(StepId start = StepId.OpenMenu)
+    {
+        Time.Cts = new CancellationTokenSource();
+        return Engine().Run(start, Time.Cts.Token);
+    }
+}

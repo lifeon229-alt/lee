@@ -1,0 +1,61 @@
+{
+  "window": {
+    "titleContains": "",
+    "processName": null,
+    "captureMode": "WindowRect",
+    "requireBaselineSize": true
+  },
+  "firstRun": ["OpenMenu", "SelectAbyss", "SelectDestination", "Enter", "WaitResult", "Replay"],
+  "loop": ["WaitResult", "Replay"],
+  "destinations": {
+    "husang": { "displayName": "허상의 정박지", "target": "dest_husang" },
+    "kwanggi": { "displayName": "광기의 동굴", "target": "dest_kwanggi" },
+    "moolgil": { "displayName": "흩어진 물길", "target": "dest_moolgil" }
+  },
+  "timing": {
+    "menuOpenTimeoutMs": 15000,
+    "generalButtonTimeoutMs": 20000,
+    "replayTimeoutMs": 60000,
+    "battleTimeoutMs": 600000,
+    "pollIntervalMs": [380, 520],
+    "battlePollIntervalMs": [620, 800],
+    "postInputCheckMs": [400, 650],
+    "maxRetries": 3,
+    "disappearConfirmFrames": 2,
+    "escSettleMs": 700,
+    "enterDelayMs": 1000,
+    "transitionWaitMs": 3000,
+    "skipSettleMs": [250, 350],
+    "skipMinIntervalMs": 1000,
+    "reviveMinIntervalMs": 4000,
+    "reviveCheckDelayMs": 1500,
+    "reviveMaxAttempts": 3,
+    "mealMinIntervalMs": 4000,
+    "reconnectMinIntervalMs": 3000,
+    "reconnectCheckDelayMs": 3000,
+    "keyHoldMs": [40, 110],
+    "mouseHoldMs": [30, 110],
+    "startCountdownSeconds": 3
+  },
+  "options": {
+    "destination": "husang",
+    "targetRuns": 0,
+    "skipDialogEnabled": true,
+    "reviveEnabled": false,
+    "mealEnabled": false,
+    "reconnectEnabled": false,
+    "autoResumeEnabled": false,
+    "autoResumeAfterErrorMinutes": 10,
+    "autoResumeIdleMinutes": 10,
+    "autoResumeStableChecks": 3,
+    "autoResumeCheckIntervalMs": 250,
+    "autoResumeCountdownSeconds": 3,
+    "autoResumeMaxCount": 3
+  },
+  "logging": {
+    "maxLogFileKb": 2048,
+    "maxLogFiles": 5,
+    "maxEvidenceFiles": 200,
+    "maxEvidenceMb": 300
+  }
+}

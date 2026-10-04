@@ -1,0 +1,123 @@
+{
+  // 영역 표기: [왼쪽, 위, 오른쪽, 아래] — [x, y, 너비, 높이]가 아니며 화면 절대좌표도 아님.
+  // 좌표 기준: 테두리와 제목 표시줄을 포함한 게임 창 캡처(baseline). 값에는 W, H, W-80, H-110, W/2 식을 쓸 수 있다.
+  // 아래 영역은 기존 환경(816×1039)의 초기값이다. 내 화면 캡처로 '화면 검증'을 먼저 돌려 확인한 뒤 조정한다.
+  "baseline": { "width": 816, "height": 1039, "includesTitleBar": true },
+
+  // 초기 사진 일치 기준. 모든 사진에 맞는 값이 아니므로 사진마다 threshold로 덮어쓸 수 있다.
+  "defaultImageThreshold": 0.75,
+  "scoring": { "ocr": 2, "image": 2, "color": 1 },
+
+  "targets": {
+    "chat_input": {
+      "description": "메인화면 근거: 채팅 입력창의 '말하기' (창 왼쪽 80px 이후, 하단 110px)",
+      "region": [80, "H-110", "W", "H"],
+      "ocr": { "texts": ["말하기"], "mode": "contains" },
+      "passScore": 2
+    },
+    "menu_open": {
+      "description": "메뉴 열림: 서로 다른 메뉴 이름 3개 이상 (창 오른쪽 절반, y=120~700)",
+      "region": ["W/2", 120, "W", 700],
+      "ocr": {
+        "texts": ["캐릭터", "가방", "크래프팅", "연금술", "퀘스트", "아르바이트", "미션", "거래소", "환경설정"],
+        "mode": "exact",
+        "minDistinct": 3
+      },
+      "passScore": 2
+    },
+    "abyss_menu": {
+      "description": "메뉴의 어비스 항목: OCR '어비스' 또는 a_abyss.png 중 하나 (2점)",
+      "region": [450, 280, 640, 420],
+      "ocr": { "texts": ["어비스"], "mode": "contains" },
+      "images": [ { "file": "a_abyss.png" } ],
+      "passScore": 2
+    },
+    "dest_husang": {
+      "description": "목적지 배너: 허상의 정박지 (사진으로만 판정)",
+      "region": [100, 480, 700, 900],
+      "images": [ { "file": "a_husang.png" } ],
+      "passScore": 2
+    },
+    "dest_kwanggi": {
+      "description": "목적지 배너: 광기의 동굴 (사진으로만 판정)",
+      "region": [100, 480, 700, 900],
+      "images": [ { "file": "a_kwanggi.png" } ],
+      "passScore": 2
+    },
+    "dest_moolgil": {
+      "description": "목적지 배너: 흩어진 물길 (사진으로만 판정)",
+      "region": [100, 480, 700, 900],
+      "images": [ { "file": "a_moolgil.png" } ],
+      "passScore": 2
+    },
+    "enter": {
+      "description": "입장하기: 3점 이상 (OCR+사진, 또는 OCR/사진 + 초록·파랑 버튼색)",
+      "region": [280, 940, 560, 1020],
+      "ocr": { "texts": ["입장하기"], "mode": "fuzzy" },
+      "images": [ { "file": "a_enter.png" } ],
+      "color": { "allowed": ["green", "blue"], "minDominance": 60 },
+      "passScore": 3
+    },
+    "result_touch": {
+      "description": "결과 화면: '터치해' OCR 또는 touch.png/touch2.png (2점). 색상 미사용",
+      "region": [240, 930, 600, 1010],
+      "ocr": { "texts": ["터치해"], "mode": "contains" },
+      "images": [ { "file": "touch.png" }, { "file": "touch2.png" } ],
+      "passScore": 2
+    },
+    "replay": {
+      "description": "보상 화면 하단 중앙 '다시 하기': OCR 2점 + 초록 배경 1점 모두 필요",
+      "region": [340, 900, 500, 1039],
+      "ocr": { "texts": ["다시하기"], "mode": "fuzzy" },
+      "color": { "allowed": ["green"], "minDominance": 60 },
+      "require": ["ocr", "color"],
+      "passScore": 3
+    },
+    "skip": {
+      "description": "우상단 '대화 넘기기' / '장면 넘기기'",
+      "region": [600, 55, 816, 145],
+      "ocr": { "texts": ["대화넘기기", "장면넘기기"], "mode": "fuzzy" },
+      "passScore": 2
+    },
+
+    // ── 아래는 실제 화면을 받기 전까지 미설정(region null). 기능을 켜도 시작 전 점검에서 막힌다. ──
+    "revive_button": {
+      "description": "'여기서 부활' 버튼 — 실제 화면 필요",
+      "region": null,
+      "ocr": { "texts": ["여기서부활"], "mode": "contains" },
+      "images": [ { "file": "revival.png" } ],
+      "passScore": 2
+    },
+    "revive_state": {
+      "description": "행동불능 화면 근거(문구) — 실제 화면 필요",
+      "region": null,
+      "ocr": { "texts": [], "mode": "contains" },
+      "passScore": 2
+    },
+    "revive_purchase": {
+      "description": "부활 재료 부족·구매 안내 근거 — 실제 화면 필요",
+      "region": null,
+      "ocr": { "texts": [], "mode": "contains" },
+      "passScore": 2
+    },
+    "meal_button": {
+      "description": "음식 사용 버튼 — 실제 버튼 사진과 역할 확인 필요",
+      "region": null,
+      "images": [ { "file": "meal.png" } ],
+      "passScore": 2
+    },
+    "reconnect_notice": {
+      "description": "재접속 안내 문구(전체 문장, 짧은 단어 유사 일치 금지) — 실제 화면 필요",
+      "region": null,
+      "ocr": { "texts": [], "mode": "contains" },
+      "passScore": 2
+    },
+    "reconnect_retry": {
+      "description": "재접속 안내창의 '다시 시도하기' 버튼 — 실제 화면 필요",
+      "region": null,
+      "ocr": { "texts": ["다시시도하기"], "mode": "contains" },
+      "images": [ { "file": "retry.png" } ],
+      "passScore": 2
+    }
+  }
+}
