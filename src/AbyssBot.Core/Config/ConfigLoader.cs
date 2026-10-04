@@ -81,9 +81,17 @@ public static class ConfigLoader
             if (!t.Targets.ContainsKey(d.Value.Target))
                 errors.Add($"목적지 '{d.Key}'의 대상 '{d.Value.Target}'이 targets.json에 없습니다.");
         if (s.FirstRun.Count == 0) errors.Add("firstRun이 비어 있습니다.");
-        if (s.Loop.Count == 0) errors.Add("loop가 비어 있습니다.");
-        if (s.Loop.Any(x => x is StepId.OpenMenu or StepId.SelectAbyss or StepId.SelectDestination or StepId.Enter))
-            errors.Add("loop에는 메뉴/어비스/목적지/입장 단계를 넣을 수 없습니다(최초 한 번만 수행).");
+        if (!s.Loops.ContainsKey(s.Options.RepeatMode))
+            errors.Add($"loops에 선택한 반복 방식 '{s.Options.RepeatMode}'의 순서가 없습니다.");
+        foreach (var (mode, loop) in s.Loops)
+        {
+            if (loop.Count == 0) errors.Add($"loops.{mode}가 비어 있습니다.");
+            if (loop.Any(x => x is StepId.OpenMenu or StepId.SelectAbyss or StepId.SelectDestination))
+                errors.Add($"loops.{mode}에는 메뉴/어비스/목적지 선택 단계를 넣을 수 없습니다(최초 한 번만 수행).");
+            for (int i = 0; i < loop.Count; i++)
+                if (loop[i] == StepId.Enter && (i == 0 || loop[i - 1] != StepId.OtherDungeon))
+                    errors.Add($"loops.{mode}: 반복 중 입장하기는 '다른 던전 가기' 바로 다음에만 올 수 있습니다.");
+        }
         if (s.Timing.MaxRetries < 0 || s.Timing.MaxRetries > 10) errors.Add("maxRetries는 0~10이어야 합니다.");
         if (s.Timing.DisappearConfirmFrames < 1) errors.Add("disappearConfirmFrames는 1 이상이어야 합니다.");
         if (s.Timing.ReviveMinIntervalMs < 4000) errors.Add("reviveMinIntervalMs는 4000 이상이어야 합니다.");

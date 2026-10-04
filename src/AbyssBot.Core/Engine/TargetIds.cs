@@ -9,6 +9,7 @@ public static class TargetIds
     public const string Enter = "enter";
     public const string ResultTouch = "result_touch";
     public const string Replay = "replay";
+    public const string OtherDungeon = "other_dungeon";
     public const string Skip = "skip";
     public const string ReviveButton = "revive_button";
     public const string ReviveState = "revive_state";
@@ -28,6 +29,7 @@ public static class StepNames
         Config.StepId.Enter => "입장하기",
         Config.StepId.WaitResult => "전투 결과 대기",
         Config.StepId.Replay => "다시 하기",
+        Config.StepId.OtherDungeon => "다른 던전 가기",
         _ => s.ToString(),
     };
 }

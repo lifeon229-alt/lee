@@ -5,8 +5,11 @@
     "captureMode": "WindowRect",
     "requireBaselineSize": true
   },
-  "firstRun": ["OpenMenu", "SelectAbyss", "SelectDestination", "Enter", "WaitResult", "Replay"],
-  "loop": ["WaitResult", "Replay"],
+  "firstRun": ["OpenMenu", "SelectAbyss", "SelectDestination", "Enter"],
+  "loops": {
+    "OtherDungeon": ["WaitResult", "OtherDungeon", "Enter"],
+    "Replay": ["WaitResult", "Replay"]
+  },
   "destinations": {
     "husang": { "displayName": "허상의 정박지", "target": "dest_husang" },
     "kwanggi": { "displayName": "광기의 동굴", "target": "dest_kwanggi" },
@@ -39,6 +42,7 @@
   },
   "options": {
     "destination": "husang",
+    "repeatMode": "OtherDungeon",
     "targetRuns": 0,
     "skipDialogEnabled": true,
     "reviveEnabled": false,

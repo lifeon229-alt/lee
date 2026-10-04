@@ -329,5 +329,8 @@ public class TextAndRegionTests
         Assert.False(cfg.Targets.Targets["revive_state"].IsConfigured);
         Assert.True(cfg.Targets.Targets["enter"].IsConfigured);
         Assert.Equal(new Rect(340, 900, 160, 139), cfg.Targets.Targets["replay"].Region!.Resolve(816, 1039));
+        Assert.Equal(RepeatMode.OtherDungeon, cfg.Scenario.Options.RepeatMode);
+        Assert.Equal(new[] { StepId.WaitResult, StepId.OtherDungeon, StepId.Enter }, cfg.Scenario.Loops[RepeatMode.OtherDungeon]);
+        Assert.True(cfg.Targets.Targets["other_dungeon"].IsConfigured);
     }
 }

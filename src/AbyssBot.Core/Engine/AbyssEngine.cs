@@ -23,6 +23,7 @@ public sealed class AbyssEngine
     private readonly Random _rng;
     private readonly string _destKey;
     private readonly string _destTarget;
+    private readonly RepeatMode _mode;
 
     private readonly Dictionary<string, DateTime> _lastAction = new(StringComparer.Ordinal);
     private readonly HashSet<string> _once = new(StringComparer.Ordinal);
@@ -41,6 +42,7 @@ public sealed class AbyssEngine
         _log = log; _evidence = evidence; _observer = observer; _rng = rng ?? new Random();
         // 실행 중 목적지는 잠근다. 설정을 바꿔도 이 엔진 인스턴스에는 반영되지 않는다.
         _destKey = scenario.Options.Destination;
+        _mode = scenario.Options.RepeatMode;
         _destTarget = scenario.Destinations.TryGetValue(_destKey, out var d)
             ? d.Target
             : throw new ConfigException($"목적지 '{_destKey}'가 scenario.json destinations에 없습니다.");
@@ -49,6 +51,7 @@ public sealed class AbyssEngine
     public RunStats Stats { get; } = new();
     public string LockedDestination => _destKey;
     public string DestinationTarget => _destTarget;
+    public RepeatMode RepeatMode => _mode;
     public LastInput? LastInputRecord => _lastInput;
 
     private TimingSpec T => _s.Timing;
@@ -68,7 +71,7 @@ public sealed class AbyssEngine
             foreach (var m in missingImagesOf(dest.Target))
                 problems.Add($"목적지 배너 사진이 없습니다: images/{m} (목적지는 사진으로만 판정)");
         }
-        foreach (var id in new[] { TargetIds.Chat, TargetIds.MenuOpen, TargetIds.AbyssMenu, TargetIds.Enter, TargetIds.ResultTouch, TargetIds.Replay })
+        foreach (var id in new[] { TargetIds.Chat, TargetIds.MenuOpen, TargetIds.AbyssMenu, TargetIds.Enter, TargetIds.ResultTouch, RewardTarget(s.Options.RepeatMode) })
             if (!det.IsConfigured(id)) problems.Add($"필수 대상 '{id}'이 설정되지 않았습니다.");
 
         void RequireFor(bool enabled, string feature, params string[] ids)
@@ -93,7 +96,7 @@ public sealed class AbyssEngine
         _ct = ct;
         if (resetStats) Stats.Reset(_clock.Now); else Stats.BreakSegment();
         _observer?.StatsChanged(Stats);
-        _log.Info($"실행 시작: 목적지 '{_destKey}'({_destTarget}) 잠금, 시작 단계 '{StepNames.Korean(start)}'");
+        _log.Info($"실행 시작: 목적지 '{_destKey}'({_destTarget}) 잠금, 반복 방식 '{(_mode == RepeatMode.OtherDungeon ? "다른 던전 가기" : "다시 하기")}', 시작 단계 '{StepNames.Korean(start)}'");
 
         try
         {
@@ -111,8 +114,11 @@ public sealed class AbyssEngine
                     r = step switch
                     {
                         StepId.OpenMenu => OpenMenu(),
-                        StepId.SelectAbyss => ClickAndAdvance(TargetIds.AbyssMenu, _destTarget, "어비스 메뉴", "목적지 목록"),
-                        StepId.SelectDestination => ClickAndAdvance(_destTarget, TargetIds.Enter, "목적지 배너", "입장하기 버튼"),
+                        StepId.SelectAbyss => ClickAndAdvance(TargetIds.AbyssMenu, new[] { _destTarget }, "어비스 메뉴", "목적지 목록"),
+                        StepId.SelectDestination => ClickAndAdvance(_destTarget, new[] { TargetIds.Enter }, "목적지 배너", "입장하기 버튼"),
+                        // 다른 던전 가기 → 어비스 목적지 화면(직전 목적지가 선택된 채 입장하기 표시). 배너를 다시 누르지 않는다.
+                        StepId.OtherDungeon => ClickAndAdvance(TargetIds.OtherDungeon, new[] { _destTarget, TargetIds.Enter },
+                            "다른 던전 가기", "목적지 화면(선택한 목적지 배너+입장하기)", T.ReplayTimeoutMs),
                         StepId.Enter => EnterDungeon(),
                         StepId.WaitResult => WaitResult(),
                         StepId.Replay => Replay(),
@@ -151,6 +157,13 @@ public sealed class AbyssEngine
         return new RunResult(RunOutcome.Failed, null, "실행 순서가 끝남", null);
     }
 
+    /// <summary>보상 화면에서 누를 버튼 대상.</summary>
+    public static string RewardTarget(RepeatMode mode) => mode == RepeatMode.OtherDungeon ? TargetIds.OtherDungeon : TargetIds.Replay;
+
+    private List<StepId> Loop => _s.Loops.TryGetValue(_mode, out var l)
+        ? l
+        : throw new ConfigException($"scenario.json loops에 '{_mode}' 반복 순서가 없습니다.");
+
     private IEnumerable<StepId> Sequence(StepId start)
     {
         int i = _s.FirstRun.IndexOf(start);
@@ -160,12 +173,12 @@ public sealed class AbyssEngine
         }
         else
         {
-            int j = _s.Loop.IndexOf(start);
+            int j = Loop.IndexOf(start);
             if (j < 0) throw new ConfigException($"시작 단계 {start}가 firstRun/loop에 없습니다.");
-            for (; j < _s.Loop.Count; j++) yield return _s.Loop[j];
+            for (; j < Loop.Count; j++) yield return Loop[j];
         }
         while (true)
-            foreach (var s in _s.Loop) yield return s;
+            foreach (var s in Loop) yield return s;
     }
 
     // ───────────────────────── 단계 ─────────────────────────
@@ -224,9 +237,10 @@ public sealed class AbyssEngine
     /// <summary>
     /// 클릭 후에도 남아 있을 수 있는 대상(메뉴 아이콘, 목적지 배너): 사진 소멸이 아니라 다음 화면 등장으로 성공을 확인한다.
     /// </summary>
-    private StepResult ClickAndAdvance(string targetId, string nextId, string label, string nextLabel)
+    private StepResult ClickAndAdvance(string targetId, string[] nextIds, string label, string nextLabel, int? timeoutMs = null)
     {
-        var deadline = _clock.Now.AddMilliseconds(T.GeneralButtonTimeoutMs);
+        var timeout = timeoutMs ?? T.GeneralButtonTimeoutMs;
+        var deadline = _clock.Now.AddMilliseconds(timeout);
         int clicks = 0;
         while (true)
         {
@@ -240,10 +254,9 @@ public sealed class AbyssEngine
                     if (aux.Acted) continue;
                     if (aux.Blocked) goto next;
 
-                    var next = Detect(cap, nextId);
-                    if (next.Found && clicks > 0)
+                    if (clicks > 0 && AllFound(cap, nextIds, out var next))
                     {
-                        _log.Info($"{nextLabel} 확인 → {label} 클릭 성공. {next.Summary()}");
+                        _log.Info($"{nextLabel} 확인 → {label} 클릭 성공. {next}");
                         return StepResult.Ok;
                     }
                     var d = Detect(cap, targetId);
@@ -253,9 +266,9 @@ public sealed class AbyssEngine
                             return StepResult.Fail($"{label}을(를) {clicks}번 눌렀지만 {nextLabel}이(가) 나타나지 않음");
                         if (!SendClick(cap, d, label, out var why)) return StepResult.Fail(why);
                         clicks++;
-                        if (WaitForTarget(nextId, T.TransitionWaitMs, out var nd))
+                        if (WaitForAll(nextIds, T.TransitionWaitMs, out var nd))
                         {
-                            _log.Info($"{nextLabel} 확인 → {label} 클릭 성공. {nd!.Summary()}");
+                            _log.Info($"{nextLabel} 확인 → {label} 클릭 성공. {nd}");
                             return StepResult.Ok;
                         }
                         _log.Warn($"{label} 클릭 후 {T.TransitionWaitMs}ms 안에 {nextLabel} 미확인 ({clicks}/{T.MaxRetries + 1}회)");
@@ -267,7 +280,7 @@ public sealed class AbyssEngine
             next:
             if (_clock.Now > deadline)
                 return StepResult.Fail(clicks == 0
-                    ? $"{T.GeneralButtonTimeoutMs / 1000}초 동안 {label}을(를) 찾지 못함"
+                    ? $"{timeout / 1000}초 동안 {label}을(를) 찾지 못함 — 다른 버튼/빈자리는 누르지 않고 정지"
                     : $"{label} 클릭 후 {nextLabel}이(가) 나타나지 않음");
             Wait(T.PollIntervalMs);
         }
@@ -399,7 +412,7 @@ public sealed class AbyssEngine
                     clicks++;
                 }
             }
-            var gone = ConfirmGone(TargetIds.ResultTouch, TargetIds.Replay);
+            var gone = ConfirmGone(TargetIds.ResultTouch, RewardTarget(_mode));
             if (gone.Fail is not null) return StepResult.Fail(gone.Fail);
             if (gone.Gone)
             {
@@ -654,17 +667,30 @@ public sealed class AbyssEngine
         return (false, "", null);
     }
 
-    private bool WaitForTarget(string id, int timeoutMs, out Detection? det)
+    /// <summary>다음 화면의 근거가 모두 한 캡처에서 확인돼야 한다.</summary>
+    private bool AllFound(Frame cap, string[] ids, out string summary)
+    {
+        var parts = new List<string>();
+        foreach (var id in ids)
+        {
+            var d = Detect(cap, id);
+            if (!d.Found) { summary = ""; return false; }
+            parts.Add(d.Summary());
+        }
+        summary = string.Join(" / ", parts);
+        return true;
+    }
+
+    private bool WaitForAll(string[] ids, int timeoutMs, out string summary)
     {
         var until = _clock.Now.AddMilliseconds(timeoutMs);
-        det = null;
+        summary = "";
         do
         {
             Wait(T.PostInputCheckMs);
             using var cap = CaptureFrame(out var fatal);
             if (fatal is not null || cap is null) continue;
-            var d = Detect(cap, id);
-            if (d.Found) { det = d; return true; }
+            if (AllFound(cap, ids, out summary)) return true;
         } while (_clock.Now < until);
         return false;
     }

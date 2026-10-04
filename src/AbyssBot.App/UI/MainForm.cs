@@ -14,6 +14,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
     private static readonly string BaseDir = AppContext.BaseDirectory;
 
     private readonly ComboBox _dest = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 180 };
+    private readonly ComboBox _mode = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 140 };
     private readonly NumericUpDown _targetRuns = new() { Minimum = 0, Maximum = 9999, Width = 70 };
     private readonly CheckBox _skip = new() { Text = "대화·장면 넘기기", AutoSize = true };
     private readonly CheckBox _revive = new() { Text = "여기서 부활", AutoSize = true };
@@ -81,6 +82,8 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         var row1 = Flow();
         row1.Controls.Add(Lbl("목적지"));
         row1.Controls.Add(_dest);
+        row1.Controls.Add(Lbl("  반복 방식"));
+        row1.Controls.Add(_mode);
         row1.Controls.Add(Lbl("  목표 횟수(0=무제한)"));
         row1.Controls.Add(_targetRuns);
         root.Controls.Add(row1);
@@ -134,6 +137,10 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         foreach (var (key, d) in _cfg.Scenario.Destinations)
             _dest.Items.Add(new DestItem(key, d.DisplayName));
         _dest.SelectedItem = _dest.Items.Cast<DestItem>().FirstOrDefault(i => i.Key == o.Destination);
+        _mode.Items.Clear();
+        _mode.Items.Add(new ModeItem(RepeatMode.OtherDungeon, "다른 던전 가기"));
+        _mode.Items.Add(new ModeItem(RepeatMode.Replay, "다시 하기"));
+        _mode.SelectedItem = _mode.Items.Cast<ModeItem>().First(i => i.Mode == o.RepeatMode);
         _targetRuns.Value = Math.Clamp(o.TargetRuns, 0, 9999);
         _skip.Checked = o.SkipDialogEnabled;
         _revive.Checked = o.ReviveEnabled;
@@ -147,13 +154,18 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         public override string ToString() => Name;
     }
 
+    private sealed record ModeItem(RepeatMode Mode, string Name)
+    {
+        public override string ToString() => Name;
+    }
+
     private void SetRunningUi(bool running)
     {
         _running = running;
         _start.Enabled = !running;
         _stop.Enabled = running;
         // 실행 중 목적지와 기능 설정은 잠근다(바꾸려면 정지 후 다시 시작 → 최초 입장부터).
-        foreach (var c in new Control[] { _dest, _targetRuns, _skip, _revive, _meal, _reconnect, _autoResume }) c.Enabled = !running;
+        foreach (var c in new Control[] { _dest, _mode, _targetRuns, _skip, _revive, _meal, _reconnect, _autoResume }) c.Enabled = !running;
     }
 
     // ───────────── 시작/정지 ─────────────
@@ -176,6 +188,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         var o = cfg.Scenario.Options;
         if (_dest.SelectedItem is not DestItem dest) { Fail("시작 불가", "목적지를 선택하세요."); return; }
         o.Destination = dest.Key;
+        if (_mode.SelectedItem is ModeItem mode) o.RepeatMode = mode.Mode;
         o.TargetRuns = (int)_targetRuns.Value;
         o.SkipDialogEnabled = _skip.Checked;
         o.ReviveEnabled = _revive.Checked;
@@ -232,7 +245,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
             var evidence = new EvidenceStore(Path.Combine(BaseDir, "errors"), cfg.Scenario.Logging);
             var engine = new AbyssEngine(cfg.Scenario, detector, window, _input!, clock, waiter, _logger, evidence, this);
             _stats = engine.Stats;
-            var classifier = new ScreenClassifier(detector, engine.DestinationTarget, o.ReconnectEnabled);
+            var classifier = new ScreenClassifier(detector, engine.DestinationTarget, o.ReconnectEnabled, engine.RepeatMode);
             Func<AutoResumeController> resumeFactory = () => new AutoResumeController(o, clock, waiter, new UserActivity(), window,
                 () =>
                 {

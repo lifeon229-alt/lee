@@ -17,6 +17,11 @@ public class ResumeTests
     {
         var rig = new Rig();
         var c = new ScreenClassifier(rig.Det, "dest_husang", false);
+        OpenCvSharp.Mat Cap(string state)
+        {
+            rig.Game.State = state; rig.Game.Extra = new HashSet<string>();
+            return rig.Win.Capture().Frame!.Image;
+        }
         Classification Of(string state, params string[] extra)
         {
             rig.Game.State = state; rig.Game.Extra = new HashSet<string>(extra);
@@ -25,14 +30,16 @@ public class ResumeTests
             return c.Classify(cap.Frame!.Image);
         }
         Assert.Equal(StepId.WaitResult, Of("result").Step);
-        Assert.Equal(StepId.Replay, Of("reward").Step);
+        Assert.Equal(StepId.OtherDungeon, Of("reward").Step);
+        Assert.Null(Of("rewardOnlyReplay").Step);   // 선택한 방식의 버튼이 없으면 판별 안 함
+        Assert.Equal(StepId.Replay, new ScreenClassifier(rig.Det, "dest_husang", false, RepeatMode.Replay).Classify(Cap("reward")).Step);
         Assert.Equal(StepId.Enter, Of("destSelected").Step);
         Assert.Equal(StepId.SelectDestination, Of("destList").Step);
         Assert.Equal(StepId.SelectAbyss, Of("menu").Step);
         Assert.Null(Of("battle").Step);          // 채팅창만으로 전투 중이라 단정하지 않음
         Assert.Null(Of("town").Step);
         Assert.Null(Of("unknown").Step);
-        Assert.Null(Of("result", TargetIds.Replay).Step); // 충돌
+        Assert.Null(Of("result", TargetIds.OtherDungeon).Step); // 충돌
     }
 
     private static (AutoResumeController ctl, FakeTime time, Activity act, Rig rig) Make(string state)
@@ -70,7 +77,7 @@ public class ResumeTests
         var step = ctl.WaitForResume(time.Now, CancellationToken.None);
         Assert.True(poked);
         Assert.Contains(rig.Lines, l => l.Contains("자동 재개 취소"));
-        Assert.Equal(StepId.Replay, step); // 취소 후 다시 10분 무입력이 지나야 재개
+        Assert.Equal(StepId.OtherDungeon, step); // 취소 후 다시 10분 무입력이 지나야 재개
         Assert.True(time.Now - act.LastInput >= TimeSpan.FromMinutes(10));
     }
 

@@ -38,7 +38,7 @@ public sealed class ScreenVerifier(LoadedConfig cfg, IDetector detector)
         }
 
         var dest = cfg.Scenario.Destinations.TryGetValue(cfg.Scenario.Options.Destination, out var ds) ? ds.Target : "";
-        var c = new ScreenClassifier(detector, dest, cfg.Scenario.Options.ReconnectEnabled).Classify(frame);
+        var c = new ScreenClassifier(detector, dest, cfg.Scenario.Options.ReconnectEnabled, cfg.Scenario.Options.RepeatMode).Classify(frame);
         sb.AppendLine($"  → 재분류: {(c.Step is { } s ? StepNames.Korean(s) : "판별 안 함")} — {c.Reason}");
         return new Result(sb.ToString(), annotated);
     }

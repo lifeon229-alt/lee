@@ -5,14 +5,18 @@ public sealed class ScenarioConfig
 {
     public WindowSpec Window { get; set; } = new();
 
-    /// <summary>최초 실행 순서. 마지막 다음에는 Loop를 반복한다.</summary>
+    /// <summary>최초 한 번만 수행하는 입장 순서. 끝나면 선택한 반복 방식의 순서(Loops)를 반복한다.</summary>
     public List<StepId> FirstRun { get; set; } = new()
     {
-        StepId.OpenMenu, StepId.SelectAbyss, StepId.SelectDestination, StepId.Enter, StepId.WaitResult, StepId.Replay
+        StepId.OpenMenu, StepId.SelectAbyss, StepId.SelectDestination, StepId.Enter,
     };
 
-    /// <summary>두 번째 판부터 반복할 순서.</summary>
-    public List<StepId> Loop { get; set; } = new() { StepId.WaitResult, StepId.Replay };
+    /// <summary>반복 방식별 순서.</summary>
+    public Dictionary<RepeatMode, List<StepId>> Loops { get; set; } = new()
+    {
+        [RepeatMode.OtherDungeon] = new() { StepId.WaitResult, StepId.OtherDungeon, StepId.Enter },
+        [RepeatMode.Replay] = new() { StepId.WaitResult, StepId.Replay },
+    };
 
     /// <summary>목적지 키 → 배너 대상 이름.</summary>
     public Dictionary<string, DestinationSpec> Destinations { get; set; } = new(StringComparer.Ordinal);
@@ -29,6 +33,16 @@ public enum StepId
     SelectDestination,
     Enter,
     WaitResult,
+    Replay,
+    OtherDungeon,
+}
+
+/// <summary>보상 화면에서 다음 판으로 가는 방식.</summary>
+public enum RepeatMode
+{
+    /// <summary>'다른 던전 가기' → 목적지 화면(직전 목적지 선택 상태) → 입장하기.</summary>
+    OtherDungeon,
+    /// <summary>'다시 하기' → 바로 다음 전투.</summary>
     Replay,
 }
 
@@ -95,6 +109,9 @@ public sealed class OptionsSpec
 {
     /// <summary>Destinations의 키.</summary>
     public string Destination { get; set; } = "husang";
+
+    /// <summary>반복 방식. 실행 중에는 바뀌지 않는다.</summary>
+    public RepeatMode RepeatMode { get; set; } = RepeatMode.OtherDungeon;
 
     /// <summary>0이면 무제한. 1 이상이면 이 횟수만큼 클리어한 뒤 정상 종료(완료 알림).</summary>
     public int TargetRuns { get; set; }

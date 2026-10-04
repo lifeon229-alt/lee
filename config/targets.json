@@ -73,6 +73,14 @@
       "require": ["ocr", "color"],
       "passScore": 3
     },
+    "other_dungeon": {
+      "description": "보상 화면 오른쪽 '다른 던전 가기': OCR 2점 + 초록 배경 1점 모두 필요. 영역은 임시값 — 실제 보상 화면 캡처로 확인 필요",
+      "region": [500, 900, "W", "H"],
+      "ocr": { "texts": ["다른던전가기"], "mode": "fuzzy" },
+      "color": { "allowed": ["green"], "minDominance": 60 },
+      "require": ["ocr", "color"],
+      "passScore": 3
+    },
     "skip": {
       "description": "우상단 '대화 넘기기' / '장면 넘기기'",
       "region": [600, 55, 816, 145],

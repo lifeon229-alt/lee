@@ -10,6 +10,7 @@ public class EngineFlowTests
     public void FirstRun_then_second_battle_entry_via_replay()
     {
         var rig = new Rig();
+        rig.Scenario.Options.RepeatMode = RepeatMode.Replay;
         rig.Game.BattleLength = 10;
         // 두 번째 판 전투 진입이 확인되면(다시 하기 버튼 소멸 확인 후 전투 상태) 사용자 정지
         rig.Time.CancelWhen = () => rig.Game.State == "battle" && rig.Lines.Any(l => l.Contains("다시 하기 버튼 소멸 확인"));
@@ -25,6 +26,7 @@ public class EngineFlowTests
     public void Loop_does_not_reopen_menu_on_later_runs()
     {
         var rig = new Rig();
+        rig.Scenario.Options.RepeatMode = RepeatMode.Replay;
         rig.Time.CancelWhen = () => rig.Game.Inputs.Count(i => i == "click:replay") >= 3 && rig.Game.State == "battle";
         rig.Run();
         Assert.Single(rig.Game.Inputs, i => i == "ESC");
@@ -70,6 +72,7 @@ public class EngineFlowTests
     public void Replay_button_missing_stops_without_clicking_anything()
     {
         var rig = new Rig();
+        rig.Scenario.Options.RepeatMode = RepeatMode.Replay;
         rig.Game.State = "rewardNoButton";
         var start = rig.Time.Now;
         var r = rig.Run(StepId.Replay);
@@ -84,6 +87,7 @@ public class EngineFlowTests
     public void Replay_button_that_stays_is_retried_limited_times_then_fails()
     {
         var rig = new Rig();
+        rig.Scenario.Options.RepeatMode = RepeatMode.Replay;
         rig.Game.State = "reward";
         rig.Game.IgnoreInputIn.Add("reward");
         var r = rig.Run(StepId.Replay);
@@ -96,6 +100,7 @@ public class EngineFlowTests
     public void Single_frame_miss_is_not_treated_as_button_gone()
     {
         var rig = new Rig();
+        rig.Scenario.Options.RepeatMode = RepeatMode.Replay;
         rig.Game.State = "reward";
         rig.Game.IgnoreInputIn.Add("reward");
         // 클릭 직후 첫 확인 프레임에서만 한 번 인식 실패
@@ -171,6 +176,54 @@ public class EngineFlowTests
     }
 
     [Fact]
+    public void OtherDungeon_mode_repeats_same_destination_without_reselecting_banner()
+    {
+        var rig = new Rig();
+        rig.Game.BattleLength = 10;
+        rig.Time.CancelWhen = () => rig.Game.Inputs.Count(i => i == "SPACE") >= 3 && rig.Game.State == "battle";
+        var r = rig.Run();
+        Assert.Equal(RunOutcome.UserStopped, r.Outcome);
+        Assert.Equal(new[]
+        {
+            "ESC", "click:abyss_menu", "click:dest_husang", "SPACE",
+            "click:result_touch", "click:other_dungeon", "SPACE",
+            "click:result_touch", "click:other_dungeon", "SPACE",
+        }, rig.Game.Inputs);
+        Assert.DoesNotContain("click:replay", rig.Game.Inputs);
+    }
+
+    [Fact]
+    public void OtherDungeon_missing_stops_without_clicking_replay_or_anything()
+    {
+        var rig = new Rig();
+        rig.Game.State = "rewardOnlyReplay";
+        var r = rig.Run(StepId.OtherDungeon);
+        Assert.Equal(RunOutcome.Failed, r.Outcome);
+        Assert.Empty(rig.Game.Inputs);
+        Assert.Contains("error_OtherDungeon", rig.Evidence.Labels);
+    }
+
+    [Fact]
+    public void OtherDungeon_requires_locked_destination_banner_with_enter()
+    {
+        var rig = new Rig();
+        rig.Game.State = "reward";
+        rig.Game.AfterOtherDungeon = "otherEnterOnly"; // 입장하기는 보이지만 잠긴 목적지(허상) 배너가 없음
+        var r = rig.Run(StepId.OtherDungeon);
+        Assert.Equal(RunOutcome.Failed, r.Outcome);
+        Assert.Equal(new[] { "click:other_dungeon" }, rig.Game.Inputs); // 입장(SPACE)으로 넘어가지 않음
+    }
+
+    [Fact]
+    public void Repeat_mode_is_locked_at_engine_creation()
+    {
+        var rig = new Rig();
+        var engine = rig.Engine();
+        rig.Scenario.Options.RepeatMode = RepeatMode.Replay;
+        Assert.Equal(RepeatMode.OtherDungeon, engine.RepeatMode);
+    }
+
+    [Fact]
     public void Target_runs_completes_without_pressing_replay()
     {
         var rig = new Rig();
@@ -178,6 +231,7 @@ public class EngineFlowTests
         var r = rig.Run();
         Assert.Equal(RunOutcome.Completed, r.Outcome);
         Assert.DoesNotContain("click:replay", rig.Game.Inputs);
+        Assert.DoesNotContain("click:other_dungeon", rig.Game.Inputs);
     }
 
     [Fact]

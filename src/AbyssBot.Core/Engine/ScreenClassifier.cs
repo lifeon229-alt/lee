@@ -14,7 +14,7 @@ public sealed record Classification(StepId? Step, string Reason, IReadOnlyList<D
 /// 근거가 없거나 서로 충돌하면 알 수 없음(null)으로 두고 입력하지 않는다.
 /// 채팅 입력창만으로는 마을/던전을 구분할 수 없으므로 단계로 연결하지 않는다.
 /// </summary>
-public sealed class ScreenClassifier(IDetector detector, string destinationTarget, bool reconnectEnabled)
+public sealed class ScreenClassifier(IDetector detector, string destinationTarget, bool reconnectEnabled, RepeatMode mode = RepeatMode.OtherDungeon)
 {
     public Classification Classify(Mat frame)
     {
@@ -25,14 +25,15 @@ public sealed class ScreenClassifier(IDetector detector, string destinationTarge
             return new(null, "재접속 안내 표시 중", dets);
 
         bool touch = D(TargetIds.ResultTouch).Found;
-        bool replay = D(TargetIds.Replay).Found;
+        // 보상 화면: 선택한 반복 방식의 버튼만 근거로 쓴다.
+        bool replay = D(AbyssEngine.RewardTarget(mode)).Found;
         bool enter = D(TargetIds.Enter).Found;
         bool dest = D(destinationTarget).Found;
         bool menu = D(TargetIds.MenuOpen).Found;
 
         var seen = new List<string>();
         if (touch) seen.Add("결과 문구");
-        if (replay) seen.Add("다시 하기");
+        if (replay) seen.Add(mode == RepeatMode.OtherDungeon ? "다른 던전 가기" : "다시 하기");
         if (enter) seen.Add("입장하기");
         if (dest) seen.Add("목적지 배너");
         if (menu) seen.Add("열린 메뉴");
@@ -43,7 +44,9 @@ public sealed class ScreenClassifier(IDetector detector, string destinationTarge
             return new(null, $"서로 충돌하는 화면 근거: {string.Join(", ", seen)}", dets);
 
         if (touch) return new(StepId.WaitResult, "결과 화면('터치해') → 결과 확인 단계", dets);
-        if (replay) return new(StepId.Replay, "보상 화면('다시 하기') → 다시 하기 단계", dets);
+        if (replay) return mode == RepeatMode.OtherDungeon
+            ? new(StepId.OtherDungeon, "보상 화면('다른 던전 가기') → 다른 던전 가기 단계", dets)
+            : new(StepId.Replay, "보상 화면('다시 하기') → 다시 하기 단계", dets);
         if (enter) return new(StepId.Enter, "입장하기 버튼 → 입장 단계", dets);
         if (dest) return new(StepId.SelectDestination, "어비스 목적지 목록 → 목적지 선택 단계", dets);
         if (menu) return new(StepId.SelectAbyss, "열린 메뉴 → 어비스 선택 단계", dets);

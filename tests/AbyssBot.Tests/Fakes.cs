@@ -20,6 +20,8 @@ public sealed class FakeGame
     /// <summary>캡처 번호별로 한 번 인식 실패(깜빡임)를 흉내.</summary>
     public Func<int, string, bool>? Flicker;
     public int Captures;
+    /// <summary>다른 던전 가기 후 나타나는 화면(기본: 직전 목적지 선택 + 입장하기).</summary>
+    public string AfterOtherDungeon = "destSelected";
     public readonly List<string> Inputs = new();
 
     public static readonly Dictionary<string, Rect> Buttons = new()
@@ -30,6 +32,7 @@ public sealed class FakeGame
         [TargetIds.Enter] = new Rect(350, 960, 120, 40),
         [TargetIds.ResultTouch] = new Rect(300, 950, 200, 30),
         [TargetIds.Replay] = new Rect(370, 950, 100, 50),
+        [TargetIds.OtherDungeon] = new Rect(560, 950, 160, 50),
         [TargetIds.Skip] = new Rect(700, 80, 90, 40),
         [TargetIds.ReviveButton] = new Rect(350, 600, 120, 50),
         [TargetIds.ReconnectRetry] = new Rect(350, 650, 120, 50),
@@ -45,10 +48,12 @@ public sealed class FakeGame
             "menu" => new HashSet<string> { TargetIds.MenuOpen, TargetIds.AbyssMenu, TargetIds.Chat },
             "destList" => new HashSet<string> { "dest_husang", "dest_kwanggi" },
             "destSelected" => new HashSet<string> { "dest_husang", "dest_kwanggi", TargetIds.Enter },
+            "otherEnterOnly" => new HashSet<string> { "dest_kwanggi", TargetIds.Enter },
             "battle" => new HashSet<string> { TargetIds.Chat },
             "result" => new HashSet<string> { TargetIds.ResultTouch },
-            "reward" => new HashSet<string> { TargetIds.Replay },
+            "reward" => new HashSet<string> { TargetIds.Replay, TargetIds.OtherDungeon },
             "rewardNoButton" => new HashSet<string>(),
+            "rewardOnlyReplay" => new HashSet<string> { TargetIds.Replay },
             "unknown" => new HashSet<string>(),
             _ => new HashSet<string>(),
         };
@@ -81,6 +86,7 @@ public sealed class FakeGame
             case ("destList", "dest_husang"): State = "destSelected"; break;
             case ("result", TargetIds.ResultTouch): State = "reward"; break;
             case ("reward", TargetIds.Replay): StartBattle(); break;
+            case ("reward", TargetIds.OtherDungeon): State = AfterOtherDungeon; break;
         }
         if (hit == TargetIds.Skip) Extra.Remove(TargetIds.Skip);
     }
