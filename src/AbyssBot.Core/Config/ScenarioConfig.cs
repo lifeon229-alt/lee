@@ -8,7 +8,7 @@ public sealed class ScenarioConfig
     /// <summary>최초 한 번만 수행하는 입장 순서. 끝나면 선택한 반복 방식의 순서(Loops)를 반복한다.</summary>
     public List<StepId> FirstRun { get; set; } = new()
     {
-        StepId.OpenMenu, StepId.SelectAbyss, StepId.SelectDestination, StepId.Enter,
+        StepId.OpenMenu, StepId.SelectAbyss, StepId.SelectDestination, StepId.SelectOptions, StepId.Enter,
     };
 
     /// <summary>반복 방식별 순서.</summary>
@@ -35,6 +35,8 @@ public enum StepId
     WaitResult,
     Replay,
     OtherDungeon,
+    /// <summary>입장 화면에서 난이도·혼자하기/함께하기 선택(최초 1회).</summary>
+    SelectOptions,
 }
 
 /// <summary>보상 화면에서 다음 판으로 가는 방식.</summary>
@@ -115,6 +117,12 @@ public sealed class OptionsSpec
 
     /// <summary>반복 방식. 실행 중에는 바뀌지 않는다.</summary>
     public RepeatMode RepeatMode { get; set; } = RepeatMode.OtherDungeon;
+
+    /// <summary>최초 입장 때 고를 난이도: ""(현재 유지), intro, hard, veryHard, hell1.</summary>
+    public string Difficulty { get; set; } = "";
+
+    /// <summary>최초 입장 때 고를 방식: ""(현재 유지), solo(혼자하기), together(함께하기).</summary>
+    public string PartyMode { get; set; } = "";
 
     /// <summary>0이면 무제한. 1 이상이면 이 횟수만큼 클리어한 뒤 정상 종료(완료 알림).</summary>
     public int TargetRuns { get; set; }

@@ -33,10 +33,13 @@ public static class TextMatcher
     }
 
     /// <summary>목표 문구 하나를 찾는다. 찾지 못하면 null.</summary>
-    public static TextMatch? Find(OcrResult ocr, string target, string mode)
+    public static TextMatch? Find(OcrResult ocr, string target, string mode) => FindAll(ocr, target, mode).FirstOrDefault();
+
+    /// <summary>목표 문구가 나타나는 모든 위치(같은 글자가 여러 버튼에 있을 때 구분용).</summary>
+    public static IEnumerable<TextMatch> FindAll(OcrResult ocr, string target, string mode)
     {
         var t = Normalize(target);
-        if (t.Length == 0) return null;
+        if (t.Length == 0) yield break;
 
         foreach (var line in ocr.Lines)
         {
@@ -50,9 +53,9 @@ public static class TextMatcher
 
             if (mode is "contains" or "fuzzy")
             {
-                int idx = lineNorm.IndexOf(t, StringComparison.Ordinal);
-                if (idx >= 0)
-                    return new TextMatch(target, line.Text, UnionForRange(line, starts, norm, idx, t.Length), "포함");
+                for (int idx = lineNorm.IndexOf(t, StringComparison.Ordinal); idx >= 0;
+                     idx = lineNorm.IndexOf(t, idx + 1, StringComparison.Ordinal))
+                    yield return new TextMatch(target, line.Text, UnionForRange(line, starts, norm, idx, t.Length), "포함");
             }
 
             // 후보: 단어 하나, 연속 단어 결합(줄 전체 포함)
@@ -73,12 +76,11 @@ public static class TextMatcher
                     {
                         var rect = Union(line.Words.Skip(i).Take(j - i + 1).Select(w => w.Rect));
                         var text = string.Join(" ", line.Words.Skip(i).Take(j - i + 1).Select(w => w.Text));
-                        return new TextMatch(target, text, rect, mode == "exact" ? "정확" : $"유사(편집거리 {EditDistance(sb, t)})");
+                        yield return new TextMatch(target, text, rect, mode == "exact" ? "정확" : $"유사(편집거리 {EditDistance(sb, t)})");
                     }
                 }
             }
         }
-        return null;
     }
 
     private static Rect UnionForRange(OcrLine line, int[] starts, string[] norm, int idx, int len)

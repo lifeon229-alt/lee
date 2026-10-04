@@ -5,7 +5,7 @@
     "captureMode": "Client",
     "requireBaselineSize": true
   },
-  "firstRun": ["OpenMenu", "SelectAbyss", "SelectDestination", "Enter"],
+  "firstRun": ["OpenMenu", "SelectAbyss", "SelectDestination", "SelectOptions", "Enter"],
   "loops": {
     "OtherDungeon": ["WaitResult", "OtherDungeon", "SelectDestination", "Enter"],
     "Replay": ["WaitResult", "Replay"]
@@ -43,6 +43,8 @@
   "options": {
     "destination": "husang",
     "repeatMode": "OtherDungeon",
+    "difficulty": "",
+    "partyMode": "",
     "targetRuns": 0,
     "skipDialogEnabled": false,
     "reviveEnabled": false,

@@ -30,6 +30,32 @@ public sealed class Detector : IDetector
 
     public Detection Detect(Mat frame, string targetId)
     {
+        var d = DetectCore(frame, targetId);
+        if (!d.Found || d.ButtonRect is not { } rect || !_cfg.Targets.TryGetValue(targetId, out var def)) return d;
+
+        // 선택형 버튼: 선택됨 표시(색 비율)를 함께 판정
+        bool? selected = null;
+        double fraction = 0;
+        if (def.Selected is { } sel)
+        {
+            var area = ColorJudge.ExpandWithin(rect, sel.ExpandX, sel.ExpandY, d.SearchRegion);
+            fraction = ColorJudge.Fraction(frame, area, sel.Color, sel.MinDominance);
+            selected = fraction >= sel.MinFraction;
+        }
+        // 클릭 위치를 버튼 왼쪽 일부로 제한(오른쪽 화살표 등 제외)
+        if (def.ClickLeftFraction is { } f)
+            rect = new Rect(rect.X, rect.Y, Math.Max(1, (int)(rect.Width * f)), rect.Height);
+
+        return new Detection
+        {
+            TargetId = d.TargetId, Configured = d.Configured, Found = d.Found, Score = d.Score, PassScore = d.PassScore,
+            SearchRegion = d.SearchRegion, ButtonRect = rect, DistinctTexts = d.DistinctTexts, Images = d.Images,
+            Ocr = d.Ocr, Color = d.Color, Conflict = d.Conflict, Note = d.Note, Selected = selected, SelectedFraction = fraction,
+        };
+    }
+
+    private Detection DetectCore(Mat frame, string targetId)
+    {
         if (!_cfg.Targets.TryGetValue(targetId, out var def) || !def.IsConfigured)
             return Detection.NotConfigured(targetId);
 
@@ -217,8 +243,14 @@ public sealed class Detector : IDetector
     private static (List<TextMatch> matches, List<string> distinct) Collect(OcrResult r, OcrRule rule)
     {
         var matches = new List<TextMatch>();
+        // 제외 문구(예: '매우 어려움')와 겹치는 위치는 버린다.
+        var excluded = (rule.ExcludeTexts ?? new()).SelectMany(x => TextMatcher.FindAll(r, x, "contains")).Select(m => m.Rect).ToList();
         foreach (var t in rule.Texts)
-            if (TextMatcher.Find(r, t, rule.Mode) is { } m) matches.Add(m);
+        {
+            var m = TextMatcher.FindAll(r, t, rule.Mode)
+                .FirstOrDefault(c => !excluded.Any(e => (e & c.Rect).Width > 0 && (e & c.Rect).Height > 0));
+            if (m is not null) matches.Add(m);
+        }
         var distinct = matches.Select(m => m.Target).Distinct(StringComparer.Ordinal).ToList();
         return (matches, distinct);
     }

@@ -25,6 +25,8 @@ public sealed class AbyssEngine
     private readonly string _destTarget;
     private readonly string _destTitle;
     private readonly RepeatMode _mode;
+    private readonly (string id, string label)? _difficulty;
+    private readonly (string id, string label)? _party;
 
     private readonly Dictionary<string, DateTime> _lastAction = new(StringComparer.Ordinal);
     private readonly HashSet<string> _once = new(StringComparer.Ordinal);
@@ -44,6 +46,8 @@ public sealed class AbyssEngine
         // 실행 중 목적지는 잠근다. 설정을 바꿔도 이 엔진 인스턴스에는 반영되지 않는다.
         _destKey = scenario.Options.Destination;
         _mode = scenario.Options.RepeatMode;
+        _difficulty = TargetIds.Difficulty(scenario.Options.Difficulty);
+        _party = TargetIds.Party(scenario.Options.PartyMode);
         if (!scenario.Destinations.TryGetValue(_destKey, out var d))
             throw new ConfigException($"목적지 '{_destKey}'가 scenario.json destinations에 없습니다.");
         _destTarget = d.Target;
@@ -86,6 +90,8 @@ public sealed class AbyssEngine
                     problems.Add($"{feature} 기능이 켜져 있지만 '{id}' 대상이 설정되지 않았습니다(영역·문구·사진 필요).");
         }
         RequireFor(s.Options.SkipDialogEnabled, "대화/장면 넘기기", TargetIds.Skip);
+        if (TargetIds.Difficulty(s.Options.Difficulty) is { } dif) RequireFor(true, $"난이도({dif.label})", dif.id);
+        if (TargetIds.Party(s.Options.PartyMode) is { } par) RequireFor(true, $"방식({par.label})", par.id);
         RequireFor(s.Options.ReviveEnabled, "부활", TargetIds.ReviveButton, TargetIds.ReviveState, TargetIds.RevivePurchase);
         RequireFor(s.Options.MealEnabled, "음식 사용", TargetIds.MealButton);
         RequireFor(s.Options.ReconnectEnabled, "재접속", TargetIds.ReconnectNotice, TargetIds.ReconnectRetry);
@@ -127,6 +133,7 @@ public sealed class AbyssEngine
                             new[] { new[] { _destTarget }, new[] { _destTitle, TargetIds.Enter } },
                             "다른 던전 가기", "어비스 목적지 화면", T.ReplayTimeoutMs),
                         StepId.Enter => EnterDungeon(),
+                        StepId.SelectOptions => SelectOptions(),
                         StepId.WaitResult => WaitResult(),
                         StepId.Replay => Replay(),
                         _ => StepResult.Fail($"알 수 없는 단계 {step}"),
@@ -488,6 +495,68 @@ public sealed class AbyssEngine
                 return StepResult.Fail(clicks == 0
                     ? $"{T.ReplayTimeoutMs / 1000}초 동안 '다시 하기' 버튼이 나타나지 않음(게임 버그 가능) — 다른 버튼/빈자리는 누르지 않고 정지"
                     : "'다시 하기' 클릭 후 결과를 확인하지 못함");
+            Wait(T.PollIntervalMs);
+        }
+    }
+
+    /// <summary>최초 입장 화면에서 난이도 → 혼자하기/함께하기를 고른다. 고르지 않은 항목은 현재 상태 유지.</summary>
+    private StepResult SelectOptions()
+    {
+        if (_difficulty is null && _party is null)
+        {
+            _log.Info("난이도·방식: 선택 안 함(게임의 현재 상태 유지)");
+            return StepResult.Ok;
+        }
+        foreach (var opt in new[] { _difficulty, _party })
+        {
+            if (opt is not { } o) continue;
+            var r = SelectOne(o.id, o.label);
+            if (r.Outcome != StepOutcome.Success) return r;
+        }
+        return StepResult.Ok;
+    }
+
+    /// <summary>
+    /// 선택형 버튼 하나: 이미 선택돼 있으면 누르지 않는다. 아니면 글자 위치를 누르고 선택 표시가 나타날 때까지 확인(재시도 제한).
+    /// </summary>
+    private StepResult SelectOne(string id, string label)
+    {
+        var deadline = _clock.Now.AddMilliseconds(T.GeneralButtonTimeoutMs);
+        int clicks = 0;
+        while (true)
+        {
+            using (var cap = CaptureFrame(out var fatal))
+            {
+                if (fatal is not null) return StepResult.Fail(fatal);
+                if (cap is not null)
+                {
+                    var aux = HandleReconnect(cap);
+                    if (aux.Fail is not null) return StepResult.Fail(aux.Fail);
+                    if (aux.Acted) continue;
+                    if (aux.Blocked) goto next;
+
+                    var d = Detect(cap, id);
+                    if (d.Found)
+                    {
+                        if (d.Selected is null) return StepResult.Fail($"'{id}' 대상에 선택됨 판정 규칙(selected)이 없습니다.");
+                        if (d.Selected == true)
+                        {
+                            _log.Info($"{label} 선택 확인{(clicks == 0 ? "(이미 선택돼 있어 누르지 않음)" : "")}: {d.Summary()}");
+                            return StepResult.Ok;
+                        }
+                        if (clicks > T.MaxRetries)
+                            return StepResult.Fail($"'{label}'을(를) {clicks}번 눌렀지만 선택 표시가 확인되지 않음: {d.Summary()}");
+                        if (!SendClick(cap, d, label, out var why)) return StepResult.Fail(why);
+                        clicks++;
+                        Wait(T.PostInputCheckMs);
+                        continue;
+                    }
+                    LogOnce("opt-wait-" + id, $"'{label}' 찾는 중: {d.Summary()}");
+                }
+            }
+            next:
+            if (_clock.Now > deadline)
+                return StepResult.Fail($"{T.GeneralButtonTimeoutMs / 1000}초 동안 '{label}' 글자를 찾지 못함 — 다른 곳은 누르지 않고 정지");
             Wait(T.PollIntervalMs);
         }
     }

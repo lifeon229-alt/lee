@@ -97,13 +97,20 @@ public static class ConfigLoader
                 errors.Add($"목적지 '{d.Key}'의 제목 대상 '{d.Value.TitleTarget}'이 targets.json에 없습니다.");
         }
         if (s.FirstRun.Count == 0) errors.Add("firstRun이 비어 있습니다.");
+        if (s.Options.Difficulty is not ("" or "intro" or "hard" or "veryHard" or "hell1"))
+            errors.Add("options.difficulty는 \"\", intro, hard, veryHard, hell1 중 하나여야 합니다.");
+        if (s.Options.PartyMode is not ("" or "solo" or "together"))
+            errors.Add("options.partyMode는 \"\", solo, together 중 하나여야 합니다.");
+        if (s.FirstRun.Contains(StepId.SelectOptions) &&
+            s.FirstRun.IndexOf(StepId.SelectOptions) != s.FirstRun.IndexOf(StepId.SelectDestination) + 1)
+            errors.Add("firstRun: SelectOptions는 SelectDestination 바로 다음에 와야 합니다.");
         if (!s.Loops.ContainsKey(s.Options.RepeatMode))
             errors.Add($"loops에 선택한 반복 방식 '{s.Options.RepeatMode}'의 순서가 없습니다.");
         foreach (var (mode, loop) in s.Loops)
         {
             if (loop.Count == 0) errors.Add($"loops.{mode}가 비어 있습니다.");
-            if (loop.Any(x => x is StepId.OpenMenu or StepId.SelectAbyss))
-                errors.Add($"loops.{mode}에는 메뉴 열기/어비스 선택 단계를 넣을 수 없습니다(최초 한 번만 수행).");
+            if (loop.Any(x => x is StepId.OpenMenu or StepId.SelectAbyss or StepId.SelectOptions))
+                errors.Add($"loops.{mode}에는 메뉴 열기/어비스 선택/난이도·방식 선택 단계를 넣을 수 없습니다(최초 한 번만 수행).");
             for (int i = 0; i < loop.Count; i++)
             {
                 if (loop[i] == StepId.SelectDestination && (i == 0 || loop[i - 1] != StepId.OtherDungeon))
@@ -121,6 +128,10 @@ public static class ConfigLoader
         {
             if (def.Ocr is { } o && o.Mode is not ("contains" or "fuzzy" or "exact"))
                 errors.Add($"대상 '{name}': ocr.mode는 contains, fuzzy, exact 중 하나여야 합니다.");
+            if (def.Selected is { } sel && sel.Color is not ("red" or "purple" or "green" or "blue"))
+                errors.Add($"대상 '{name}': selected.color는 red, purple, green, blue 중 하나여야 합니다.");
+            if (def.ClickLeftFraction is { } f && (f <= 0 || f > 1))
+                errors.Add($"대상 '{name}': clickLeftFraction은 0보다 크고 1 이하여야 합니다.");
             if (def.Color is { } c && c.Allowed.Any(a => a is not ("green" or "blue")))
                 errors.Add($"대상 '{name}': color.allowed는 green, blue만 허용합니다.");
             if (def.Require is { } req && req.Any(r => r is not ("ocr" or "image" or "color")))

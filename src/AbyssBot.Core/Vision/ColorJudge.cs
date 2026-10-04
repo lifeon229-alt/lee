@@ -38,6 +38,32 @@ public static class ColorJudge
         return 255;
     }
 
+    /// <summary>사각형 안에서 지정 색으로 분류되는 픽셀 비율(0~1).</summary>
+    public static double Fraction(Mat bgr, Rect rect, string color, int dominance)
+    {
+        rect &= new Rect(0, 0, bgr.Width, bgr.Height);
+        if (rect.Width <= 0 || rect.Height <= 0) return 0;
+        using var roi = new Mat(bgr, rect);
+        var idx = roi.GetGenericIndexer<Vec3b>();
+        int hit = 0;
+        for (int y = 0; y < roi.Rows; y++)
+        for (int x = 0; x < roi.Cols; x++)
+        {
+            var p = idx[y, x];
+            int b = p.Item0, g = p.Item1, r = p.Item2;
+            bool ok = color switch
+            {
+                "red" => r - Math.Max(g, b) >= dominance,
+                "purple" => b - g >= dominance && r - g >= dominance / 2,
+                "green" => g - Math.Max(r, b) >= dominance,
+                "blue" => b - Math.Max(r, g) >= dominance,
+                _ => false,
+            };
+            if (ok) hit++;
+        }
+        return (double)hit / (rect.Width * rect.Height);
+    }
+
     /// <summary>OCR 글자 영역을 가로·세로 배율로 넓히고 탐색 영역 안으로 제한한다.</summary>
     public static Rect ExpandWithin(Rect r, double fx, double fy, Rect bounds)
     {

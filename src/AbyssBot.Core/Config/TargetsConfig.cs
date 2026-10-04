@@ -52,6 +52,15 @@ public sealed class TargetDef
     /// </summary>
     public int SameButtonTolerance { get; set; } = 12;
 
+    /// <summary>
+    /// 0~1. 설정하면 클릭 위치를 버튼(검출 영역)의 왼쪽 이 비율 안으로만 제한한다.
+    /// 예: '지옥1' 글자 오른쪽의 화살표(단계 선택 창)를 누르지 않도록.
+    /// </summary>
+    public double? ClickLeftFraction { get; set; }
+
+    /// <summary>선택형 버튼의 '선택됨' 표시 판정(난이도, 혼자하기/함께하기).</summary>
+    public SelectedSpec? Selected { get; set; }
+
     public bool IsConfigured =>
         Region is not null &&
         ((Ocr is { } o && o.Texts.Count > 0) || (Images is { Count: > 0 }));
@@ -80,6 +89,22 @@ public sealed class OcrRule
     /// 설정하면 원본·2배 확대로 못 찾았을 때 한 번 더, 순백색 글자만 남긴 흑백 그림(흰 바탕 검은 글자, 2배)으로 읽는다.
     /// </summary>
     public WhiteTextSpec? WhiteText { get; set; }
+
+    /// <summary>이 문구들과 겹치는 위치는 제외한다. 예: '어려움'을 찾을 때 '매우 어려움' 안의 '어려움' 제외.</summary>
+    public List<string>? ExcludeTexts { get; set; }
+}
+
+/// <summary>
+/// 선택됨 판정: 검출된 글자 영역을 넓힌 범위에서 지정 색 픽셀 비율이 MinFraction 이상이면 선택된 상태.
+/// color: red(R-max(G,B)≥dominance), purple(B-G≥dominance 이고 R-G≥dominance/2), green, blue.
+/// </summary>
+public sealed class SelectedSpec
+{
+    public string Color { get; set; } = "red";
+    public int MinDominance { get; set; } = 60;
+    public double MinFraction { get; set; } = 0.05;
+    public double ExpandX { get; set; } = 1.5;
+    public double ExpandY { get; set; } = 2.0;
 }
 
 public sealed class ImageRef

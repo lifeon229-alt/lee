@@ -32,6 +32,10 @@ public sealed class Detection
     public OcrEvidence? Ocr { get; init; }
     public ColorEvidence? Color { get; init; }
     public bool Conflict { get; init; }
+
+    /// <summary>선택형 버튼의 선택됨 여부(Selected 규칙이 있을 때만). 비율은 지정 색 픽셀 비율.</summary>
+    public bool? Selected { get; init; }
+    public double SelectedFraction { get; init; }
     public string? Note { get; init; }
 
     public ImageEvidence? BestImage => Images.Where(i => i.Note is null).OrderByDescending(i => i.Score).FirstOrDefault();
@@ -54,6 +58,7 @@ public sealed class Detection
             sb.Append($" | 사진 {i.File} {i.Score:0.000}/{i.Threshold:0.00}{(i.Matched ? "✓" : "")}{(i.Note is null ? "" : " " + i.Note)}");
         if (Color is { } c) sb.Append(" | ").Append(c.Describe());
         if (ButtonRect is { } r && Found) sb.Append($" | 위치 ({r.X},{r.Y},{r.Width}x{r.Height})");
+        if (Selected is { } sel) sb.Append($" | 선택됨={(sel ? "예" : "아니오")}(색 비율 {SelectedFraction:P1})");
         if (Conflict) sb.Append(" | OCR·사진 위치 충돌");
         if (Note is not null) sb.Append(" | ").Append(Note);
         return sb.ToString();

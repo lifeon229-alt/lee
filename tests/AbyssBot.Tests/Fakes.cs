@@ -20,6 +20,11 @@ public sealed class FakeGame
     /// <summary>캡처 번호별로 한 번 인식 실패(깜빡임)를 흉내.</summary>
     public Func<int, string, bool>? Flicker;
     public int Captures;
+    public string SelectedDifficulty = "difficulty_veryhard";
+    public string SelectedParty = "party_together";
+    /// <summary>입장 화면에 보이는 난이도 버튼(지옥2가 표시된 경우 등은 hell1을 빼서 흉내).</summary>
+    public HashSet<string> DifficultyButtons = new() { "difficulty_intro", "difficulty_hard", "difficulty_veryhard", "difficulty_hell1" };
+    public bool OptionClicksIgnored;
     /// <summary>다른 던전 가기 후 나타나는 화면(기본: 직전 목적지 선택 + 입장하기).</summary>
     public string AfterOtherDungeon = "destList";
     public readonly List<string> Inputs = new();
@@ -38,6 +43,12 @@ public sealed class FakeGame
         [TargetIds.ReconnectRetry] = new Rect(350, 650, 120, 50),
         [TargetIds.MealButton] = new Rect(50, 700, 50, 50),
         [TargetIds.Chat] = new Rect(100, 1000, 300, 30),
+        ["difficulty_intro"] = new Rect(60, 175, 50, 25),
+        ["difficulty_hard"] = new Rect(140, 175, 70, 25),
+        ["difficulty_veryhard"] = new Rect(240, 175, 110, 25),
+        ["difficulty_hell1"] = new Rect(390, 175, 40, 25),
+        ["party_solo"] = new Rect(790, 45, 80, 25),
+        ["party_together"] = new Rect(1050, 45, 90, 25),
     };
 
     public HashSet<string> Visible()
@@ -58,6 +69,11 @@ public sealed class FakeGame
             "unknown" => new HashSet<string>(),
             _ => new HashSet<string>(),
         };
+        if (State is "destSelected")
+        {
+            v.UnionWith(DifficultyButtons);
+            v.Add("party_solo"); v.Add("party_together");
+        }
         v.UnionWith(Extra);
         return v;
     }
@@ -90,6 +106,11 @@ public sealed class FakeGame
             case ("reward", TargetIds.OtherDungeon): State = AfterOtherDungeon; break;
         }
         if (hit == TargetIds.Skip) Extra.Remove(TargetIds.Skip);
+        if (State == "destSelected" && !OptionClicksIgnored)
+        {
+            if (hit.StartsWith("difficulty_")) SelectedDifficulty = hit;
+            if (hit.StartsWith("party_")) SelectedParty = hit;
+        }
     }
 
     private void StartBattle() { State = "battle"; BattleFramesLeft = BattleLength; }
@@ -108,10 +129,13 @@ public sealed class FakeDetector(FakeGame game) : IDetector
         var visible = Screens.TryGetValue(frame, out var v) ? v : new HashSet<string>();
         bool found = visible.Contains(id);
         if (found && game.Flicker?.Invoke(game.Captures, id) == true) found = false;
+        bool? selected = id.StartsWith("difficulty_") ? game.SelectedDifficulty == id
+            : id.StartsWith("party_") ? game.SelectedParty == id : null;
         return new Detection
         {
             TargetId = id, Found = found, Score = found ? 2 : 0, PassScore = 2,
             ButtonRect = found ? FakeGame.Buttons.GetValueOrDefault(id, new Rect(10, 10, 20, 20)) : null,
+            Selected = found ? selected : null,
         };
     }
 }

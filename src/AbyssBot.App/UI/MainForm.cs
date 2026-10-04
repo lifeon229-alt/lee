@@ -17,6 +17,10 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
     private Segmented _dest = new();
     private readonly List<string> _destKeys = new();
     private readonly Segmented _mode = new("다른 던전 가기", "다시 하기");
+    private static readonly string[] DifficultyKeys = { "", "intro", "hard", "veryHard", "hell1" };
+    private static readonly string[] PartyKeys = { "", "solo", "together" };
+    private readonly Segmented _difficulty = new("현재 유지", "입문", "어려움", "매우 어려움", "지옥1");
+    private readonly Segmented _party = new("현재 유지", "혼자하기", "함께하기");
     private readonly NumericUpDown _targetRuns = new()
     {
         Minimum = 0, Maximum = 9999, Width = 90, BorderStyle = BorderStyle.FixedSingle,
@@ -62,8 +66,8 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         BackColor = Theme.Bg;
         ForeColor = Theme.Text;
         Font = Theme.F(9.5f);
-        ClientSize = new Size(1060, 640);
-        MinimumSize = new Size(980, 640);
+        ClientSize = new Size(1060, 760);
+        MinimumSize = new Size(980, 760);
         StartPosition = FormStartPosition.CenterScreen;
         DoubleBuffered = true;
 
@@ -92,7 +96,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
     private void BuildLayout()
     {
         _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
-        _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 540));
+        _root.RowStyles.Add(new RowStyle(SizeType.Absolute, 660));
         _root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         // 머리글
@@ -138,6 +142,10 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
 
         col.Controls.Add(Section("목적지"));
         col.Controls.Add(_dest);
+        col.Controls.Add(Section("입장 화면 난이도 (최초 1회)"));
+        col.Controls.Add(_difficulty);
+        col.Controls.Add(Section("혼자하기 / 함께하기 (최초 1회)"));
+        col.Controls.Add(_party);
         col.Controls.Add(Section("다음 판 진행 방식"));
         col.Controls.Add(_mode);
 
@@ -199,8 +207,8 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
     {
         _logCard.Visible = !_logCard.Visible;
         _toggleLog.Text = _logCard.Visible ? "상세 로그 접기 ▲" : "상세 로그 보기 ▼";
-        if (_logCard.Visible && ClientSize.Height < 900) ClientSize = new Size(ClientSize.Width, 900);
-        if (!_logCard.Visible) ClientSize = new Size(ClientSize.Width, 640);
+        if (_logCard.Visible && ClientSize.Height < 1000) ClientSize = new Size(ClientSize.Width, 1000);
+        if (!_logCard.Visible) ClientSize = new Size(ClientSize.Width, 760);
     }
 
     private void FillFromConfig()
@@ -217,6 +225,8 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         _dest = fresh;
         _dest.SelectedIndex = Math.Max(0, _destKeys.IndexOf(o.Destination));
         _mode.SelectedIndex = o.RepeatMode == RepeatMode.OtherDungeon ? 0 : 1;
+        _difficulty.SelectedIndex = Math.Max(0, Array.IndexOf(DifficultyKeys, o.Difficulty));
+        _party.SelectedIndex = Math.Max(0, Array.IndexOf(PartyKeys, o.PartyMode));
         _targetRuns.Value = Math.Clamp(o.TargetRuns, 0, 9999);
 
         // 화면 자료가 없는 보조 기능은 켤 수 없게 표시한다.
@@ -248,7 +258,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         _start.Enabled = !running;
         _stop.Enabled = running;
         // 실행 중 목적지·방식·기능은 잠근다(바꾸려면 정지 후 다시 시작 → 최초 입장부터).
-        _dest.Enabled = _mode.Enabled = _targetRuns.Enabled = _autoResume.Enabled = !running;
+        _dest.Enabled = _mode.Enabled = _difficulty.Enabled = _party.Enabled = _targetRuns.Enabled = _autoResume.Enabled = !running;
         if (running) foreach (var t in new[] { _skip, _revive, _meal, _reconnect }) t.Enabled = false;
         else FillFromConfig();
     }
@@ -284,6 +294,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         if (_running) return;
         // 화면의 선택값을 읽어 둔 뒤, 실행 파일 옆 설정을 새로 읽어 반영한다.
         int destIndex = _dest.SelectedIndex, modeIndex = _mode.SelectedIndex, targetRuns = (int)_targetRuns.Value;
+        int difIndex = _difficulty.SelectedIndex, partyIndex = _party.SelectedIndex;
         bool skip = _skip.Checked, revive = _revive.Checked, meal = _meal.Checked, reconnect = _reconnect.Checked, auto = _autoResume.Checked;
         if (!LoadConfigSafe(out var err)) { Fail("설정 오류", err!); return; }
         var cfg = _cfg!;
@@ -292,6 +303,8 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         o.Destination = _destKeys[destIndex];
         o.RepeatMode = modeIndex == 0 ? RepeatMode.OtherDungeon : RepeatMode.Replay;
         o.TargetRuns = targetRuns;
+        o.Difficulty = DifficultyKeys[Math.Clamp(difIndex, 0, DifficultyKeys.Length - 1)];
+        o.PartyMode = PartyKeys[Math.Clamp(partyIndex, 0, PartyKeys.Length - 1)];
         o.SkipDialogEnabled = skip;
         o.ReviveEnabled = revive;
         o.MealEnabled = meal;
@@ -450,7 +463,12 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
     public void StepChanged(StepId step) => UI(() =>
     {
         _stepTile.Value = StepNames.Korean(step);
-        int i = Array.IndexOf(TrackerOrder, step == StepId.Replay ? StepId.OtherDungeon : step);
+        int i = Array.IndexOf(TrackerOrder, step switch
+        {
+            StepId.Replay => StepId.OtherDungeon,
+            StepId.SelectOptions => StepId.SelectDestination,
+            _ => step,
+        });
         _tracker.SetCurrent(i);
     });
 
