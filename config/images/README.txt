@@ -3,9 +3,9 @@
 버튼 사진에는 글자와 식별 가능한 버튼 모양을 포함하고, 작은 흰색 조각이나 배경만 있는 사진은 쓰지 않는다.
 
 a_abyss.png    메뉴의 어비스 아이콘+글자
-a_husang.png   허상의 정박지 배너
-a_kwanggi.png  광기의 동굴 배너
-a_moolgil.png  흩어진 물길 배너
+a_husang.png   허상의 정박지 배너 왼쪽 이름 글자(165×34, 사용자 캡처에서 잘라 적용함)
+a_kwanggi.png  광기의 동굴 배너 이름 글자(적용함)
+a_moolgil.png  흩어진 물길 배너 이름 글자(적용함)
 a_enter.png    입장하기 버튼
 touch.png      '화면을 터치해 주세요' 문구 (touch2.png 추가 가능)
 revival.png    여기서 부활 버튼 (선택)

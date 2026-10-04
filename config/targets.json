@@ -34,21 +34,21 @@
       "passScore": 2
     },
     "dest_husang": {
-      "description": "목적지 목록 배너: 허상의 정박지 (사진으로만 판정)",
+      "description": "목적지 목록 배너: 허상의 정박지 (사진으로만 판정). 사진은 배너 왼쪽 이름 글자만(165×34, 난이도·그림 제외). 사용자 캡처에서 자기 위치 1.000, 다른 배너 최고 0.694 → 기준 0.90",
       "region": [1170, 80, 1890, 535],
-      "images": [ { "file": "a_husang.png" } ],
+      "images": [ { "file": "a_husang.png", "threshold": 0.90 } ],
       "passScore": 2
     },
     "dest_kwanggi": {
-      "description": "목적지 목록 배너: 광기의 동굴 (사진으로만 판정)",
+      "description": "목적지 목록 배너: 광기의 동굴 (사진으로만 판정). 사진은 배너 왼쪽 이름 글자만(165×34, 난이도·그림 제외). 사용자 캡처에서 자기 위치 1.000, 다른 배너 최고 0.694 → 기준 0.90",
       "region": [1170, 80, 1890, 535],
-      "images": [ { "file": "a_kwanggi.png" } ],
+      "images": [ { "file": "a_kwanggi.png", "threshold": 0.90 } ],
       "passScore": 2
     },
     "dest_moolgil": {
-      "description": "목적지 목록 배너: 흩어진 물길 (사진으로만 판정)",
+      "description": "목적지 목록 배너: 흩어진 물길 (사진으로만 판정). 사진은 배너 왼쪽 이름 글자만(165×34, 난이도·그림 제외). 사용자 캡처에서 자기 위치 1.000, 다른 배너 최고 0.694 → 기준 0.90",
       "region": [1170, 80, 1890, 535],
-      "images": [ { "file": "a_moolgil.png" } ],
+      "images": [ { "file": "a_moolgil.png", "threshold": 0.90 } ],
       "passScore": 2
     },
     "dest_title_husang": {
