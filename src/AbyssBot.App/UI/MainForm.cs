@@ -245,7 +245,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
             var evidence = new EvidenceStore(Path.Combine(BaseDir, "errors"), cfg.Scenario.Logging);
             var engine = new AbyssEngine(cfg.Scenario, detector, window, _input!, clock, waiter, _logger, evidence, this);
             _stats = engine.Stats;
-            var classifier = new ScreenClassifier(detector, engine.DestinationTarget, o.ReconnectEnabled, engine.RepeatMode);
+            var classifier = new ScreenClassifier(detector, engine.DestinationTarget, engine.DestinationTitleTarget, o.ReconnectEnabled, engine.RepeatMode);
             Func<AutoResumeController> resumeFactory = () => new AutoResumeController(o, clock, waiter, new UserActivity(), window,
                 () =>
                 {

@@ -64,7 +64,10 @@ public sealed class WindowSpec
 public sealed class DestinationSpec
 {
     public string DisplayName { get; set; } = "";
+    /// <summary>목적지 목록의 배너(사진으로만 판정).</summary>
     public string Target { get; set; } = "";
+    /// <summary>배너를 누른 뒤 나오는 입장 화면의 목적지 제목(OCR). 선택된 목적지가 잠긴 목적지인지 확인하는 근거.</summary>
+    public string TitleTarget { get; set; } = "";
 }
 
 public sealed class TimingSpec

@@ -204,11 +204,11 @@ public class EngineFlowTests
     }
 
     [Fact]
-    public void OtherDungeon_requires_locked_destination_banner_with_enter()
+    public void OtherDungeon_requires_locked_destination_title_with_enter()
     {
         var rig = new Rig();
         rig.Game.State = "reward";
-        rig.Game.AfterOtherDungeon = "otherEnterOnly"; // 입장하기는 보이지만 잠긴 목적지(허상) 배너가 없음
+        rig.Game.AfterOtherDungeon = "otherEnterOnly"; // 입장하기는 보이지만 제목이 잠긴 목적지(허상)가 아님
         var r = rig.Run(StepId.OtherDungeon);
         Assert.Equal(RunOutcome.Failed, r.Outcome);
         Assert.Equal(new[] { "click:other_dungeon" }, rig.Game.Inputs); // 입장(SPACE)으로 넘어가지 않음

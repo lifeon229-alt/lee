@@ -14,7 +14,7 @@ public sealed record Classification(StepId? Step, string Reason, IReadOnlyList<D
 /// 근거가 없거나 서로 충돌하면 알 수 없음(null)으로 두고 입력하지 않는다.
 /// 채팅 입력창만으로는 마을/던전을 구분할 수 없으므로 단계로 연결하지 않는다.
 /// </summary>
-public sealed class ScreenClassifier(IDetector detector, string destinationTarget, bool reconnectEnabled, RepeatMode mode = RepeatMode.OtherDungeon)
+public sealed class ScreenClassifier(IDetector detector, string destinationTarget, string destinationTitleTarget, bool reconnectEnabled, RepeatMode mode = RepeatMode.OtherDungeon)
 {
     public Classification Classify(Mat frame)
     {
@@ -47,7 +47,13 @@ public sealed class ScreenClassifier(IDetector detector, string destinationTarge
         if (replay) return mode == RepeatMode.OtherDungeon
             ? new(StepId.OtherDungeon, "보상 화면('다른 던전 가기') → 다른 던전 가기 단계", dets)
             : new(StepId.Replay, "보상 화면('다시 하기') → 다시 하기 단계", dets);
-        if (enter) return new(StepId.Enter, "입장하기 버튼 → 입장 단계", dets);
+        if (enter)
+        {
+            // 입장 화면이 잠긴 목적지의 것인지 제목으로 확인한다. 다른 목적지면 입장하지 않는다.
+            return D(destinationTitleTarget).Found
+                ? new(StepId.Enter, "입장 화면(잠긴 목적지 제목+입장하기) → 입장 단계", dets)
+                : new(null, "입장하기는 보이지만 잠긴 목적지 제목이 확인되지 않음", dets);
+        }
         if (dest) return new(StepId.SelectDestination, "어비스 목적지 목록 → 목적지 선택 단계", dets);
         if (menu) return new(StepId.SelectAbyss, "열린 메뉴 → 어비스 선택 단계", dets);
 

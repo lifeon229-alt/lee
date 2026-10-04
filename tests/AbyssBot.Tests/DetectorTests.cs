@@ -324,11 +324,17 @@ public class TextAndRegionTests
     {
         var dir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../config"));
         var cfg = ConfigLoader.Load(dir);
-        Assert.Equal(816, cfg.Targets.Baseline.Width);
+        Assert.Equal(1920, cfg.Targets.Baseline.Width);
+        Assert.Equal(1080, cfg.Targets.Baseline.Height);
+        Assert.False(cfg.Targets.Targets["chat_input"].IsConfigured); // 메인화면 캡처 전
         Assert.Equal(3, cfg.Scenario.Destinations.Count);
         Assert.False(cfg.Targets.Targets["revive_state"].IsConfigured);
         Assert.True(cfg.Targets.Targets["enter"].IsConfigured);
-        Assert.Equal(new Rect(340, 900, 160, 139), cfg.Targets.Targets["replay"].Region!.Resolve(816, 1039));
+        // 보상 화면 세 버튼 영역이 서로 겹치지 않음
+        var replay = cfg.Targets.Targets["replay"].Region!.Resolve(1920, 1080);
+        var other = cfg.Targets.Targets["other_dungeon"].Region!.Resolve(1920, 1080);
+        Assert.True((replay & other).Width <= 0);
+        Assert.True(replay.X > 849);   // 나가기 버튼 오른쪽 끝(캡처 기준) 밖
         Assert.Equal(RepeatMode.OtherDungeon, cfg.Scenario.Options.RepeatMode);
         Assert.Equal(new[] { StepId.WaitResult, StepId.OtherDungeon, StepId.Enter }, cfg.Scenario.Loops[RepeatMode.OtherDungeon]);
         Assert.True(cfg.Targets.Targets["other_dungeon"].IsConfigured);

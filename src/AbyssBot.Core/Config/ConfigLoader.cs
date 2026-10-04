@@ -78,8 +78,12 @@ public static class ConfigLoader
     {
         var errors = new List<string>();
         foreach (var d in s.Destinations)
+        {
             if (!t.Targets.ContainsKey(d.Value.Target))
                 errors.Add($"목적지 '{d.Key}'의 대상 '{d.Value.Target}'이 targets.json에 없습니다.");
+            if (!t.Targets.ContainsKey(d.Value.TitleTarget))
+                errors.Add($"목적지 '{d.Key}'의 제목 대상 '{d.Value.TitleTarget}'이 targets.json에 없습니다.");
+        }
         if (s.FirstRun.Count == 0) errors.Add("firstRun이 비어 있습니다.");
         if (!s.Loops.ContainsKey(s.Options.RepeatMode))
             errors.Add($"loops에 선택한 반복 방식 '{s.Options.RepeatMode}'의 순서가 없습니다.");

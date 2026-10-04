@@ -47,8 +47,9 @@ public sealed class FakeGame
             "town" => new HashSet<string> { TargetIds.Chat },
             "menu" => new HashSet<string> { TargetIds.MenuOpen, TargetIds.AbyssMenu, TargetIds.Chat },
             "destList" => new HashSet<string> { "dest_husang", "dest_kwanggi" },
-            "destSelected" => new HashSet<string> { "dest_husang", "dest_kwanggi", TargetIds.Enter },
-            "otherEnterOnly" => new HashSet<string> { "dest_kwanggi", TargetIds.Enter },
+            // 배너를 누르면 나오는 입장 화면: 목적지 제목 + 입장하기 (배너는 없음)
+            "destSelected" => new HashSet<string> { "dest_title_husang", TargetIds.Enter },
+            "otherEnterOnly" => new HashSet<string> { "dest_title_kwanggi", TargetIds.Enter },
             "battle" => new HashSet<string> { TargetIds.Chat },
             "result" => new HashSet<string> { TargetIds.ResultTouch },
             "reward" => new HashSet<string> { TargetIds.Replay, TargetIds.OtherDungeon },
@@ -195,8 +196,8 @@ public sealed class Rig
     public static ScenarioConfig DefaultScenario()
     {
         var s = new ScenarioConfig();
-        s.Destinations["husang"] = new DestinationSpec { DisplayName = "허상의 정박지", Target = "dest_husang" };
-        s.Destinations["kwanggi"] = new DestinationSpec { DisplayName = "광기의 동굴", Target = "dest_kwanggi" };
+        s.Destinations["husang"] = new DestinationSpec { DisplayName = "허상의 정박지", Target = "dest_husang", TitleTarget = "dest_title_husang" };
+        s.Destinations["kwanggi"] = new DestinationSpec { DisplayName = "광기의 동굴", Target = "dest_kwanggi", TitleTarget = "dest_title_kwanggi" };
         return s;
     }
 

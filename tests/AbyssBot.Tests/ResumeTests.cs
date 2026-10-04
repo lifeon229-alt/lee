@@ -16,7 +16,7 @@ public class ResumeTests
     public void Classifier_maps_screens_and_rejects_unknown_or_conflicts()
     {
         var rig = new Rig();
-        var c = new ScreenClassifier(rig.Det, "dest_husang", false);
+        var c = new ScreenClassifier(rig.Det, "dest_husang", "dest_title_husang", false);
         OpenCvSharp.Mat Cap(string state)
         {
             rig.Game.State = state; rig.Game.Extra = new HashSet<string>();
@@ -32,8 +32,9 @@ public class ResumeTests
         Assert.Equal(StepId.WaitResult, Of("result").Step);
         Assert.Equal(StepId.OtherDungeon, Of("reward").Step);
         Assert.Null(Of("rewardOnlyReplay").Step);   // 선택한 방식의 버튼이 없으면 판별 안 함
-        Assert.Equal(StepId.Replay, new ScreenClassifier(rig.Det, "dest_husang", false, RepeatMode.Replay).Classify(Cap("reward")).Step);
+        Assert.Equal(StepId.Replay, new ScreenClassifier(rig.Det, "dest_husang", "dest_title_husang", false, RepeatMode.Replay).Classify(Cap("reward")).Step);
         Assert.Equal(StepId.Enter, Of("destSelected").Step);
+        Assert.Null(Of("otherEnterOnly").Step);     // 다른 목적지의 입장 화면에서는 입장하지 않음
         Assert.Equal(StepId.SelectDestination, Of("destList").Step);
         Assert.Equal(StepId.SelectAbyss, Of("menu").Step);
         Assert.Null(Of("battle").Step);          // 채팅창만으로 전투 중이라 단정하지 않음
@@ -47,7 +48,7 @@ public class ResumeTests
         var rig = new Rig();
         rig.Game.State = state;
         var act = new Activity(rig.Time);
-        var cls = new ScreenClassifier(rig.Det, "dest_husang", false);
+        var cls = new ScreenClassifier(rig.Det, "dest_husang", "dest_title_husang", false);
         var ctl = new AutoResumeController(rig.Scenario.Options, rig.Time, rig.Time, act, rig.Win,
             () => { var cap = rig.Win.Capture(); return cap.Frame is null ? null : cls.Classify(cap.Frame.Image); },
             rig.Log);

@@ -23,6 +23,7 @@ public sealed class AbyssEngine
     private readonly Random _rng;
     private readonly string _destKey;
     private readonly string _destTarget;
+    private readonly string _destTitle;
     private readonly RepeatMode _mode;
 
     private readonly Dictionary<string, DateTime> _lastAction = new(StringComparer.Ordinal);
@@ -43,14 +44,16 @@ public sealed class AbyssEngine
         // 실행 중 목적지는 잠근다. 설정을 바꿔도 이 엔진 인스턴스에는 반영되지 않는다.
         _destKey = scenario.Options.Destination;
         _mode = scenario.Options.RepeatMode;
-        _destTarget = scenario.Destinations.TryGetValue(_destKey, out var d)
-            ? d.Target
-            : throw new ConfigException($"목적지 '{_destKey}'가 scenario.json destinations에 없습니다.");
+        if (!scenario.Destinations.TryGetValue(_destKey, out var d))
+            throw new ConfigException($"목적지 '{_destKey}'가 scenario.json destinations에 없습니다.");
+        _destTarget = d.Target;
+        _destTitle = d.TitleTarget;
     }
 
     public RunStats Stats { get; } = new();
     public string LockedDestination => _destKey;
     public string DestinationTarget => _destTarget;
+    public string DestinationTitleTarget => _destTitle;
     public RepeatMode RepeatMode => _mode;
     public LastInput? LastInputRecord => _lastInput;
 
@@ -68,6 +71,7 @@ public sealed class AbyssEngine
         else
         {
             if (!det.IsConfigured(dest.Target)) problems.Add($"목적지 배너 대상 '{dest.Target}'이 설정되지 않았습니다.");
+            if (!det.IsConfigured(dest.TitleTarget)) problems.Add($"입장 화면 목적지 제목 대상 '{dest.TitleTarget}'이 설정되지 않았습니다.");
             foreach (var m in missingImagesOf(dest.Target))
                 problems.Add($"목적지 배너 사진이 없습니다: images/{m} (목적지는 사진으로만 판정)");
         }
@@ -115,10 +119,11 @@ public sealed class AbyssEngine
                     {
                         StepId.OpenMenu => OpenMenu(),
                         StepId.SelectAbyss => ClickAndAdvance(TargetIds.AbyssMenu, new[] { _destTarget }, "어비스 메뉴", "목적지 목록"),
-                        StepId.SelectDestination => ClickAndAdvance(_destTarget, new[] { TargetIds.Enter }, "목적지 배너", "입장하기 버튼"),
-                        // 다른 던전 가기 → 어비스 목적지 화면(직전 목적지가 선택된 채 입장하기 표시). 배너를 다시 누르지 않는다.
-                        StepId.OtherDungeon => ClickAndAdvance(TargetIds.OtherDungeon, new[] { _destTarget, TargetIds.Enter },
-                            "다른 던전 가기", "목적지 화면(선택한 목적지 배너+입장하기)", T.ReplayTimeoutMs),
+                        StepId.SelectDestination => ClickAndAdvance(_destTarget, new[] { _destTitle, TargetIds.Enter },
+                            "목적지 배너", "입장 화면(목적지 제목+입장하기)"),
+                        // 다른 던전 가기 → 직전 목적지의 입장 화면(제목+입장하기). 배너를 다시 누르지 않는다.
+                        StepId.OtherDungeon => ClickAndAdvance(TargetIds.OtherDungeon, new[] { _destTitle, TargetIds.Enter },
+                            "다른 던전 가기", "입장 화면(목적지 제목+입장하기)", T.ReplayTimeoutMs),
                         StepId.Enter => EnterDungeon(),
                         StepId.WaitResult => WaitResult(),
                         StepId.Replay => Replay(),

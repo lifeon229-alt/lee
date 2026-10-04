@@ -2,7 +2,7 @@
   "window": {
     "titleContains": "",
     "processName": null,
-    "captureMode": "WindowRect",
+    "captureMode": "Client",
     "requireBaselineSize": true
   },
   "firstRun": ["OpenMenu", "SelectAbyss", "SelectDestination", "Enter"],
@@ -11,9 +11,9 @@
     "Replay": ["WaitResult", "Replay"]
   },
   "destinations": {
-    "husang": { "displayName": "허상의 정박지", "target": "dest_husang" },
-    "kwanggi": { "displayName": "광기의 동굴", "target": "dest_kwanggi" },
-    "moolgil": { "displayName": "흩어진 물길", "target": "dest_moolgil" }
+    "husang": { "displayName": "허상의 정박지", "target": "dest_husang", "titleTarget": "dest_title_husang" },
+    "kwanggi": { "displayName": "광기의 동굴", "target": "dest_kwanggi", "titleTarget": "dest_title_kwanggi" },
+    "moolgil": { "displayName": "흩어진 물길", "target": "dest_moolgil", "titleTarget": "dest_title_moolgil" }
   },
   "timing": {
     "menuOpenTimeoutMs": 15000,
@@ -44,7 +44,7 @@
     "destination": "husang",
     "repeatMode": "OtherDungeon",
     "targetRuns": 0,
-    "skipDialogEnabled": true,
+    "skipDialogEnabled": false,
     "reviveEnabled": false,
     "mealEnabled": false,
     "reconnectEnabled": false,
