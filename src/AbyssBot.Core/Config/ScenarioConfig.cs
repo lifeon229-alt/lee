@@ -90,7 +90,14 @@ public sealed class TimingSpec
     public int DisappearConfirmFrames { get; set; } = 2;
 
     public int EscSettleMs { get; set; } = 700;
-    public int EnterDelayMs { get; set; } = 1000;
+    /// <summary>입장하기 확인 후 SPACE까지 대기(사용자 요청으로 1000 → 300).</summary>
+    public int EnterDelayMs { get; set; } = 300;
+
+    /// <summary>보상 화면 버튼(다른 던전 가기·다시 하기)이 처음 보인 뒤 누르기 전 대기. 나타나는 연출 중 클릭이 무시되는 것 방지.</summary>
+    public int ButtonAppearDelayMs { get; set; } = 500;
+
+    /// <summary>클릭 후 다음 화면을 기다릴 때 확인 간격.</summary>
+    public IntRange TransitionPollMs { get; set; } = new(200, 300);
 
     /// <summary>메뉴 아이콘/목적지 배너 클릭 후 다음 화면을 기다리는 시간.</summary>
     public int TransitionWaitMs { get; set; } = 3000;

@@ -131,7 +131,7 @@ public sealed class AbyssEngine
                         // 다른 던전 가기 → 어비스 목적지 목록(배너) 또는 잠긴 목적지의 입장 화면. 다음 단계(목적지 선택)가 둘 다 처리한다.
                         StepId.OtherDungeon => ClickAndAdvance(TargetIds.OtherDungeon,
                             new[] { new[] { _destTarget }, new[] { _destTitle, TargetIds.Enter } },
-                            "다른 던전 가기", "어비스 목적지 화면", T.ReplayTimeoutMs),
+                            "다른 던전 가기", "어비스 목적지 화면", T.ReplayTimeoutMs, appearDelay: true),
                         StepId.Enter => EnterDungeon(),
                         StepId.SelectOptions => SelectOptions(),
                         StepId.WaitResult => WaitResult(),
@@ -253,12 +253,14 @@ public sealed class AbyssEngine
     /// </summary>
     /// <param name="nextGroups">다음 화면 근거 묶음. 묶음 하나의 대상이 한 캡처에서 모두 확인되면 성공.</param>
     /// <param name="acceptBeforeClick">클릭 전에 이미 다음 화면이면 입력 없이 성공으로 볼지.</param>
+    /// <param name="appearDelay">버튼이 처음 보인 뒤 ButtonAppearDelayMs 기다렸다가 다시 확인하고 누를지(나타나는 연출 중 클릭 무시 방지).</param>
     private StepResult ClickAndAdvance(string targetId, string[][] nextGroups, string label, string nextLabel,
-        int? timeoutMs = null, bool acceptBeforeClick = false)
+        int? timeoutMs = null, bool acceptBeforeClick = false, bool appearDelay = false)
     {
         var timeout = timeoutMs ?? T.GeneralButtonTimeoutMs;
         var deadline = _clock.Now.AddMilliseconds(timeout);
         int clicks = 0;
+        bool settled = false;
         while (true)
         {
             using (var cap = CaptureFrame(out var fatal))
@@ -281,6 +283,13 @@ public sealed class AbyssEngine
                     var d = Detect(cap, targetId);
                     if (d.Found)
                     {
+                        if (appearDelay && clicks == 0 && !settled)
+                        {
+                            // 화면이 나타나는 연출 중에는 클릭이 무시될 수 있어 잠깐 기다린 뒤 새 화면으로 다시 확인하고 누른다.
+                            settled = true;
+                            Wait(T.ButtonAppearDelayMs);
+                            continue;
+                        }
                         if (clicks > T.MaxRetries)
                             return StepResult.Fail($"{label}을(를) {clicks}번 눌렀지만 {nextLabel}이(가) 나타나지 않음");
                         if (!SendClick(cap, d, label, out var why)) return StepResult.Fail(why);
@@ -459,6 +468,7 @@ public sealed class AbyssEngine
     {
         var deadline = _clock.Now.AddMilliseconds(T.ReplayTimeoutMs);
         int clicks = 0;
+        bool settled = false;
         while (true)
         {
             Detection? d = null;
@@ -472,6 +482,12 @@ public sealed class AbyssEngine
                     if (aux.Acted) continue;
                     if (aux.Blocked) goto next;
                     var r = Detect(cap, TargetIds.Replay);
+                    if (r.Found && clicks == 0 && !settled)
+                    {
+                        settled = true;
+                        Wait(T.ButtonAppearDelayMs); // 나타나는 연출 중 클릭 무시 방지
+                        continue;
+                    }
                     if (r.Found)
                     {
                         if (clicks > T.MaxRetries)
@@ -833,7 +849,7 @@ public sealed class AbyssEngine
         summary = "";
         do
         {
-            Wait(T.PostInputCheckMs);
+            Wait(T.TransitionPollMs);
             using var cap = CaptureFrame(out var fatal);
             if (fatal is not null || cap is null) continue;
             if (AnyGroupFound(cap, groups, out summary)) return true;

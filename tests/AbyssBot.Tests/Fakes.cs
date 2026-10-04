@@ -10,7 +10,21 @@ namespace AbyssBot.Tests;
 /// <summary>입력에 반응하는 가상 게임. 화면은 '보이는 대상 이름' 집합으로 표현한다.</summary>
 public sealed class FakeGame
 {
-    public string State = "town";
+    private string _state = "town";
+    public string State
+    {
+        get => _state;
+        set { _state = value; StateSince = Now?.Invoke() ?? DateTime.MinValue; }
+    }
+    public DateTime StateSince;
+    public Func<DateTime>? Now;
+    /// <summary>상태별: 화면에 들어온 뒤 버튼이 보이기까지(ms). 그 전에는 아무것도 안 보임(연출·로딩).</summary>
+    public Dictionary<string, int> AppearMs = new();
+    /// <summary>상태별: 화면에 들어온 뒤 입력을 무시하는 시간(ms).</summary>
+    public Dictionary<string, int> InputLockMs = new();
+    public readonly List<(string input, DateTime at)> InputTimes = new();
+    private double Elapsed => Now is null ? double.MaxValue : (Now() - StateSince).TotalMilliseconds;
+    private bool Locked => InputLockMs.TryGetValue(State, out var ms) && Elapsed < ms;
     public int BattleFramesLeft;
     public int BattleLength = 3;
     public bool Foreground = true;
@@ -60,6 +74,7 @@ public sealed class FakeGame
 
     public HashSet<string> Visible()
     {
+        if (AppearMs.TryGetValue(State, out var appear) && Elapsed < appear) return new HashSet<string>(Extra);
         var v = State switch
         {
             "town" => new HashSet<string> { TargetIds.Chat },
@@ -102,7 +117,8 @@ public sealed class FakeGame
     public void OnKey(ushort scan)
     {
         Inputs.Add(ScanCode.Name(scan));
-        if (IgnoreInputIn.Contains(State)) return;
+        InputTimes.Add((ScanCode.Name(scan), Now?.Invoke() ?? DateTime.MinValue));
+        if (IgnoreInputIn.Contains(State) || Locked) return;
         if (scan == ScanCode.Esc && State == "town") State = "menu";
         else if (scan == ScanCode.Space && State == "destSelected") StartBattle();
     }
@@ -111,7 +127,8 @@ public sealed class FakeGame
     {
         var hit = Buttons.FirstOrDefault(b => Visible().Contains(b.Key) && b.Value.Contains(p)).Key ?? "빈자리";
         Inputs.Add("click:" + hit);
-        if (IgnoreInputIn.Contains(State)) return;
+        InputTimes.Add(("click:" + hit, Now?.Invoke() ?? DateTime.MinValue));
+        if (IgnoreInputIn.Contains(State) || Locked) return;
         switch (State, hit)
         {
             case ("menu", TargetIds.AbyssMenu): State = "destList"; break;
