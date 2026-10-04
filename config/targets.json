@@ -11,8 +11,8 @@
 
   "targets": {
     "chat_input": {
-      "description": "메인화면 근거: 채팅 입력창의 '말하기' — 1920×1080 메인화면 캡처 필요(기존 816×1039 값: [80, H-110, W, H])",
-      "region": null,
+      "description": "메인화면 근거: 왼쪽 아래 채팅 입력창의 '말하기'(예: '내 주변에 말하기', '길드에 말하기')",
+      "region": [80, 990, 420, 1070],
       "ocr": { "texts": ["말하기"], "mode": "contains" },
       "passScore": 2
     },
