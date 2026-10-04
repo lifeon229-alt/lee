@@ -101,6 +101,8 @@ public static class ConfigLoader
             errors.Add("options.difficulty는 \"\", intro, hard, veryHard, hell1 중 하나여야 합니다.");
         if (s.Options.PartyMode is not ("" or "solo" or "together"))
             errors.Add("options.partyMode는 \"\", solo, together 중 하나여야 합니다.");
+        if (s.Options.PartyMode == "solo" && s.Options.Difficulty == "hell1")
+            errors.Add("혼자하기에는 지옥 난이도가 없습니다(매우 어려움까지). 난이도나 방식을 바꾸세요.");
         if (s.FirstRun.Contains(StepId.SelectOptions) &&
             s.FirstRun.IndexOf(StepId.SelectOptions) != s.FirstRun.IndexOf(StepId.SelectDestination) + 1)
             errors.Add("firstRun: SelectOptions는 SelectDestination 바로 다음에 와야 합니다.");
@@ -128,8 +130,8 @@ public static class ConfigLoader
         {
             if (def.Ocr is { } o && o.Mode is not ("contains" or "fuzzy" or "exact"))
                 errors.Add($"대상 '{name}': ocr.mode는 contains, fuzzy, exact 중 하나여야 합니다.");
-            if (def.Selected is { } sel && sel.Color is not ("red" or "purple" or "green" or "blue"))
-                errors.Add($"대상 '{name}': selected.color는 red, purple, green, blue 중 하나여야 합니다.");
+            if (def.Selected is { } sel && sel.Color is not ("saturated" or "red" or "purple" or "green" or "blue"))
+                errors.Add($"대상 '{name}': selected.color는 saturated, red, purple, green, blue 중 하나여야 합니다.");
             if (def.ClickLeftFraction is { } f && (f <= 0 || f > 1))
                 errors.Add($"대상 '{name}': clickLeftFraction은 0보다 크고 1 이하여야 합니다.");
             if (def.Color is { } c && c.Allowed.Any(a => a is not ("green" or "blue")))

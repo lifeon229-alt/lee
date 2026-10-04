@@ -39,11 +39,20 @@ public static class ColorJudge
     }
 
     /// <summary>사각형 안에서 지정 색으로 분류되는 픽셀 비율(0~1).</summary>
-    public static double Fraction(Mat bgr, Rect rect, string color, int dominance)
+    public static double Fraction(Mat bgr, Rect rect, string color, int dominance, int satMin = 120, int valMin = 120)
     {
         rect &= new Rect(0, 0, bgr.Width, bgr.Height);
         if (rect.Width <= 0 || rect.Height <= 0) return 0;
         using var roi = new Mat(bgr, rect);
+        if (color == "saturated")
+        {
+            // 색과 무관하게 '선명한 색' 픽셀 비율(선택된 버튼의 테두리·배경은 보라/주황/빨강/청록 등 다양함)
+            using var hsv = new Mat();
+            Cv2.CvtColor(roi, hsv, ColorConversionCodes.BGR2HSV);
+            using var inRange = new Mat();
+            Cv2.InRange(hsv, new Scalar(0, satMin, valMin), new Scalar(180, 255, 255), inRange);
+            return (double)Cv2.CountNonZero(inRange) / (rect.Width * rect.Height);
+        }
         var idx = roi.GetGenericIndexer<Vec3b>();
         int hit = 0;
         for (int y = 0; y < roi.Rows; y++)

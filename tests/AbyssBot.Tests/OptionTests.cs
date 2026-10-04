@@ -10,7 +10,7 @@ namespace AbyssBot.Tests;
 public class OptionFlowTests
 {
     [Fact]
-    public void Difficulty_then_party_are_selected_only_on_first_entry()
+    public void Party_then_difficulty_are_selected_only_on_first_entry()
     {
         var rig = new Rig();
         rig.Scenario.Options.Difficulty = "hard";
@@ -20,7 +20,7 @@ public class OptionFlowTests
         rig.Run();
         Assert.Equal(new[]
         {
-            "ESC", "click:abyss_menu", "click:dest_husang", "click:difficulty_hard", "click:party_solo", "SPACE",
+            "ESC", "click:abyss_menu", "click:dest_husang", "click:party_solo", "click:difficulty_hard", "SPACE",
             "click:result_touch", "click:other_dungeon", "click:dest_husang", "SPACE",
         }, rig.Game.Inputs);
     }
@@ -142,5 +142,88 @@ public class OptionDetectorTests
         }
         var (det2, f2) = Make("v", Diff("매우어려움"), RowOcr());
         using (f2) Assert.False(det2.Detect(f2, "v").Selected);
+    }
+}
+
+/// <summary>탐색 영역 크기로 어느 대상의 OCR 호출인지 구분해 절대좌표 단어를 돌려주는 가짜 OCR.</summary>
+public sealed class RegionOcr(params (Rect region, (string text, Rect rect)[] words)[] table) : IOcrEngine
+{
+    public OcrResult Recognize(Mat bgr)
+    {
+        foreach (var (region, words) in table)
+        {
+            double scale = (double)bgr.Width / region.Width;
+            if (Math.Abs(bgr.Height - region.Height * scale) > 2 || (scale is not (1 or 2))) continue;
+            var list = words.Select(w => new OcrWord(w.text, new Rect(
+                (int)((w.rect.X - region.X) * scale), (int)((w.rect.Y - region.Y) * scale),
+                (int)(w.rect.Width * scale), (int)(w.rect.Height * scale)))).ToList();
+            return new OcrResult(new[] { new OcrLine(list) });
+        }
+        return OcrResult.Empty;
+    }
+}
+
+public class RealEntryScreenTests
+{
+    private static string Root => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+
+    private static readonly RegionOcr Ocr = new(
+        (new Rect(40, 155, 520, 70), new[]
+        {
+            ("입문", new Rect(72, 178, 36, 22)), ("어려움", new Rect(155, 178, 52, 22)),
+            ("매우", new Rect(255, 178, 38, 22)), ("어려움", new Rect(297, 178, 50, 22)), ("지옥1", new Rect(394, 178, 44, 22)),
+        }),
+        (new Rect(640, 20, 680, 80), new[] { ("혼자하기", new Rect(788, 45, 84, 26)), ("함께하기", new Rect(1042, 45, 104, 26)) }));
+
+    private static Mat Screen(int n)
+    {
+        var part = Cv2.ImRead(Path.Combine(AppContext.BaseDirectory, "Fixtures", $"entry_top_{n}.png"));
+        var frame = new Mat(1080, 1920, MatType.CV_8UC3, Scalar.All(0));
+        part.CopyTo(new Mat(frame, new Rect(0, 0, part.Width, part.Height)));
+        return frame;
+    }
+
+    [Theory]
+    [InlineData(6, "difficulty_intro", "party_together")]
+    [InlineData(7, "difficulty_hard", "party_together")]
+    [InlineData(8, "difficulty_veryhard", "party_together")]
+    [InlineData(9, "difficulty_veryhard", "party_solo")]
+    public void Only_the_selected_buttons_read_as_selected(int n, string diff, string party)
+    {
+        var cfg = ConfigLoader.Load(Path.Combine(Root, "config"));
+        using var images = new ImageLibrary(cfg.ImagesDirectory);
+        var det = new Detector(cfg.Targets, images, Ocr);
+        using var f = Screen(n);
+        foreach (var id in new[] { "difficulty_intro", "difficulty_hard", "difficulty_veryhard", "difficulty_hell1", "party_solo", "party_together" })
+        {
+            var d = det.Detect(f, id);
+            Assert.True(d.Found, d.Summary());
+            Assert.Equal(id == diff || id == party, d.Selected == true);
+        }
+    }
+
+    [Fact]
+    public void Solo_with_hell1_is_rejected_by_config_validation()
+    {
+        var cfg = ConfigLoader.Load(Path.Combine(Root, "config"));
+        cfg.Scenario.Options.PartyMode = "solo";
+        cfg.Scenario.Options.Difficulty = "hell1";
+        var e = Assert.Throws<ConfigException>(() => ConfigLoader.Validate(cfg.Scenario, cfg.Targets));
+        Assert.Contains("혼자하기", e.Message);
+    }
+
+    [Fact]
+    public void Scene_skip_button_found_by_white_text_image()
+    {
+        var cfg = ConfigLoader.Load(Path.Combine(Root, "config"));
+        using var images = new ImageLibrary(cfg.ImagesDirectory);
+        var det = new Detector(cfg.Targets, images, null);
+        var part = Cv2.ImRead(Path.Combine(AppContext.BaseDirectory, "Fixtures", "scene_skip_1680_15.png"));
+        using var frame = new Mat(1080, 1920, MatType.CV_8UC3, Scalar.All(0));
+        part.CopyTo(new Mat(frame, new Rect(1680, 15, part.Width, part.Height)));
+        var d = det.Detect(frame, "skip");
+        Assert.True(d.Found, d.Summary());
+        using var entry = Screen(6);
+        Assert.False(det.Detect(entry, "skip").Found);
     }
 }

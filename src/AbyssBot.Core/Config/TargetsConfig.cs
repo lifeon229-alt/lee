@@ -96,11 +96,14 @@ public sealed class OcrRule
 
 /// <summary>
 /// 선택됨 판정: 검출된 글자 영역을 넓힌 범위에서 지정 색 픽셀 비율이 MinFraction 이상이면 선택된 상태.
-/// color: red(R-max(G,B)≥dominance), purple(B-G≥dominance 이고 R-G≥dominance/2), green, blue.
+/// color: saturated(색과 무관하게 HSV 채도≥SatMin·밝기≥ValMin, 기본), red(R-max(G,B)≥dominance),
+/// purple(B-G≥dominance 이고 R-G≥dominance/2), green, blue.
 /// </summary>
 public sealed class SelectedSpec
 {
-    public string Color { get; set; } = "red";
+    public string Color { get; set; } = "saturated";
+    public int SatMin { get; set; } = 120;
+    public int ValMin { get; set; } = 120;
     public int MinDominance { get; set; } = 60;
     public double MinFraction { get; set; } = 0.05;
     public double ExpandX { get; set; } = 1.5;

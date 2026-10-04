@@ -355,7 +355,7 @@ public class TextAndRegionTests
         Assert.Equal(1920, cfg.Targets.Baseline.Width);
         Assert.Equal(1080, cfg.Targets.Baseline.Height);
         Assert.True(cfg.Targets.Targets["chat_input"].IsConfigured);
-        Assert.False(cfg.Targets.Targets["skip"].IsConfigured);       // 넘기기 화면 캡처 전
+        Assert.True(cfg.Targets.Targets["skip"].IsConfigured);
         Assert.Equal(3, cfg.Scenario.Destinations.Count);
         Assert.False(cfg.Targets.Targets["revive_state"].IsConfigured);
         Assert.True(cfg.Targets.Targets["enter"].IsConfigured);

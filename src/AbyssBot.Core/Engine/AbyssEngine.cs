@@ -499,7 +499,10 @@ public sealed class AbyssEngine
         }
     }
 
-    /// <summary>최초 입장 화면에서 난이도 → 혼자하기/함께하기를 고른다. 고르지 않은 항목은 현재 상태 유지.</summary>
+    /// <summary>
+    /// 최초 입장 화면에서 혼자하기/함께하기 → 난이도 순으로 고른다(방식에 따라 난이도 버튼이 달라지므로 방식 먼저).
+    /// 고르지 않은 항목은 현재 상태 유지. 끝으로 고른 항목이 모두 선택돼 있는지 다시 확인한다.
+    /// </summary>
     private StepResult SelectOptions()
     {
         if (_difficulty is null && _party is null)
@@ -507,12 +510,25 @@ public sealed class AbyssEngine
             _log.Info("난이도·방식: 선택 안 함(게임의 현재 상태 유지)");
             return StepResult.Ok;
         }
-        foreach (var opt in new[] { _difficulty, _party })
+        var order = new[] { _party, _difficulty };
+        foreach (var opt in order)
         {
             if (opt is not { } o) continue;
             var r = SelectOne(o.id, o.label);
             if (r.Outcome != StepOutcome.Success) return r;
         }
+        // 최종 확인: 나중 선택이 앞 선택을 바꾸지 않았는지
+        Wait(T.PostInputCheckMs);
+        using var cap = CaptureFrame(out var fatal);
+        if (fatal is not null) return StepResult.Fail(fatal);
+        if (cap is null) return StepResult.Fail("최종 확인 때 게임 창이 비활성");
+        foreach (var opt in order)
+        {
+            if (opt is not { } o) continue;
+            var d = Detect(cap, o.id);
+            if (d.Selected != true) return StepResult.Fail($"최종 확인: '{o.label}' 선택이 유지되지 않음 — 입장하지 않고 정지. {d.Summary()}");
+        }
+        _log.Info("난이도·방식 최종 확인 완료");
         return StepResult.Ok;
     }
 

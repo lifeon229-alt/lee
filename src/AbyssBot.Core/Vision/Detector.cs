@@ -39,7 +39,7 @@ public sealed class Detector : IDetector
         if (def.Selected is { } sel)
         {
             var area = ColorJudge.ExpandWithin(rect, sel.ExpandX, sel.ExpandY, d.SearchRegion);
-            fraction = ColorJudge.Fraction(frame, area, sel.Color, sel.MinDominance);
+            fraction = ColorJudge.Fraction(frame, area, sel.Color, sel.MinDominance, sel.SatMin, sel.ValMin);
             selected = fraction >= sel.MinFraction;
         }
         // 클릭 위치를 버튼 왼쪽 일부로 제한(오른쪽 화살표 등 제외)

@@ -144,7 +144,7 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         col.Controls.Add(_dest);
         col.Controls.Add(Section("입장 화면 난이도 (최초 1회)"));
         col.Controls.Add(_difficulty);
-        col.Controls.Add(Section("혼자하기 / 함께하기 (최초 1회)"));
+        col.Controls.Add(Section("혼자하기 / 함께하기 (최초 1회 · 혼자하기는 매우 어려움까지)"));
         col.Controls.Add(_party);
         col.Controls.Add(Section("다음 판 진행 방식"));
         col.Controls.Add(_mode);
@@ -305,6 +305,11 @@ public sealed class MainForm : Form, IEngineObserver, ISessionNotifier, IResumeN
         o.TargetRuns = targetRuns;
         o.Difficulty = DifficultyKeys[Math.Clamp(difIndex, 0, DifficultyKeys.Length - 1)];
         o.PartyMode = PartyKeys[Math.Clamp(partyIndex, 0, PartyKeys.Length - 1)];
+        if (o.PartyMode == "solo" && o.Difficulty == "hell1")
+        {
+            Fail("선택 조합 확인", "혼자하기에는 지옥 난이도가 없습니다(매우 어려움까지).\n난이도를 매우 어려움 이하로 바꾸거나 함께하기를 고르세요.");
+            return;
+        }
         o.SkipDialogEnabled = skip;
         o.ReviveEnabled = revive;
         o.MealEnabled = meal;

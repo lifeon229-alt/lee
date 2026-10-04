@@ -69,48 +69,49 @@
       "ocr": { "texts": ["흩어진물길"], "mode": "contains" },
       "passScore": 2
     },
-    // ── 입장 화면 난이도·방식 선택(최초 1회). 영역은 사용자 입장 화면 캡처(그림)에서 읽은 값, 선택됨 색 기준은 파일 캡처로 재확인 필요 ──
+    // ── 입장 화면 난이도·방식 선택(최초 1회). 선택된 버튼은 색이 제각각(입문 보라, 어려움 주황, 매우 어려움 빨강, 혼자하기 청록, 함께하기 보라)이라
+    //    색과 무관한 '선명한 색 픽셀 비율'로 판정. 사용자 캡처 4장: 선택 0.28~0.82, 비선택 0.00~0.02 → 기준 0.12 ──
     "difficulty_intro": {
-      "description": "입장 화면 난이도 '입문' 글자. 선택되면 빨간 글자·테두리",
+      "description": "입장 화면 난이도 '입문' 글자",
       "region": [40, 155, 560, 225],
       "ocr": { "texts": ["입문"], "mode": "exact" },
-      "selected": { "color": "red", "minDominance": 80, "minFraction": 0.04, "expandX": 1.6, "expandY": 2.2 },
+      "selected": { "color": "saturated", "minFraction": 0.12, "expandX": 1.6, "expandY": 2.2 },
       "passScore": 2
     },
     "difficulty_hard": {
       "description": "난이도 '어려움' 글자('매우 어려움' 안의 '어려움'은 제외)",
       "region": [40, 155, 560, 225],
       "ocr": { "texts": ["어려움"], "mode": "exact", "excludeTexts": ["매우어려움"] },
-      "selected": { "color": "red", "minDominance": 80, "minFraction": 0.04, "expandX": 1.6, "expandY": 2.2 },
+      "selected": { "color": "saturated", "minFraction": 0.12, "expandX": 1.6, "expandY": 2.2 },
       "passScore": 2
     },
     "difficulty_veryhard": {
       "description": "난이도 '매우 어려움' 글자",
       "region": [40, 155, 560, 225],
       "ocr": { "texts": ["매우어려움"], "mode": "contains" },
-      "selected": { "color": "red", "minDominance": 80, "minFraction": 0.04, "expandX": 1.4, "expandY": 2.2 },
+      "selected": { "color": "saturated", "minFraction": 0.12, "expandX": 1.6, "expandY": 2.2 },
       "passScore": 2
     },
     "difficulty_hell1": {
-      "description": "난이도 '지옥1' 글자만 클릭(오른쪽 화살표는 단계 선택 창이 열리므로 누르지 않음 → 클릭 범위를 글자 왼쪽 절반으로 제한). 지옥2/3이 표시돼 있으면 찾지 못하고 정지",
+      "description": "난이도 '지옥1' 글자만 클릭(오른쪽 화살표는 단계 선택 창이 열리므로 누르지 않음 → 클릭 범위를 글자 왼쪽 절반으로 제한). 지옥2/3이 표시돼 있거나 혼자하기(지옥 없음)이면 찾지 못하고 정지",
       "region": [40, 155, 560, 225],
       "ocr": { "texts": ["지옥1"], "mode": "contains" },
       "clickLeftFraction": 0.5,
-      "selected": { "color": "red", "minDominance": 80, "minFraction": 0.04, "expandX": 1.6, "expandY": 2.2 },
+      "selected": { "color": "saturated", "minFraction": 0.12, "expandX": 1.6, "expandY": 2.2 },
       "passScore": 2
     },
     "party_solo": {
-      "description": "입장 화면 위쪽 '혼자하기' 글자. 선택되면 보라색 탭 배경",
+      "description": "입장 화면 위쪽 '혼자하기' 글자(선택되면 청록 탭)",
       "region": [640, 20, 1320, 100],
       "ocr": { "texts": ["혼자하기"], "mode": "fuzzy" },
-      "selected": { "color": "purple", "minDominance": 60, "minFraction": 0.25, "expandX": 1.5, "expandY": 2.0 },
+      "selected": { "color": "saturated", "minFraction": 0.12, "expandX": 1.5, "expandY": 2.0 },
       "passScore": 2
     },
     "party_together": {
-      "description": "입장 화면 위쪽 '함께하기' 글자. 선택되면 보라색 탭 배경",
+      "description": "입장 화면 위쪽 '함께하기' 글자(선택되면 보라 탭)",
       "region": [640, 20, 1320, 100],
       "ocr": { "texts": ["함께하기"], "mode": "fuzzy" },
-      "selected": { "color": "purple", "minDominance": 60, "minFraction": 0.25, "expandX": 1.5, "expandY": 2.0 },
+      "selected": { "color": "saturated", "minFraction": 0.12, "expandX": 1.5, "expandY": 2.0 },
       "passScore": 2
     },
     "enter": {
@@ -146,9 +147,10 @@
       "passScore": 3
     },
     "skip": {
-      "description": "우상단 '대화 넘기기' / '장면 넘기기' — 1920×1080 화면 필요(기존 816×1039 값: [600,55,816,145])",
-      "region": null,
-      "ocr": { "texts": ["대화넘기기", "장면넘기기"], "mode": "fuzzy" },
+      "description": "우상단 '장면 넘기기' / '대화 넘기기' 버튼. 사진(skip_scene.png, 흰 글자만 비교): 컷신 1.000, 다른 화면 같은 영역 최고 0.074 → 기준 0.80",
+      "region": [1680, 15, 1910, 85],
+      "ocr": { "texts": ["대화넘기기", "장면넘기기"], "mode": "fuzzy", "whiteText": { "min": 235, "spread": 30 } },
+      "images": [ { "file": "skip_scene.png", "threshold": 0.80, "whiteText": { "min": 235, "spread": 30 } } ],
       "passScore": 2
     },
 
