@@ -279,6 +279,34 @@ public class DetectorTests : IDisposable
     }
 }
 
+public class WhiteTextOcrTests
+{
+    [Fact]
+    public void White_text_ocr_pass_runs_only_after_original_and_upscaled_fail()
+    {
+        var region = new Rect(700, 970, 520, 70);
+        var def = new TargetDef
+        {
+            Region = RegionSpec.FromLtrb(700, 970, 1220, 1040),
+            Ocr = new OcrRule { Texts = { "터치해" }, WhiteText = new WhiteTextSpec() },
+            PassScore = 2,
+        };
+        var cfg = new TargetsConfig();
+        cfg.Targets["t"] = def;
+        using var lib = new ImageLibrary(Path.GetTempPath());
+        using var frame = new Mat(1080, 1920, MatType.CV_8UC3, Scalar.All(40));
+        var ocr = new FakeOcr(region);
+        var d = new Detector(cfg, lib, ocr).Detect(frame, "t");
+        Assert.False(d.Found);
+        Assert.Equal(3, ocr.Calls); // 원본, 2배, 흰 글자 2배
+
+        ocr.Calls = 0;
+        ocr.Words = new() { ("화면을터치해주세요", new Rect(840, 990, 240, 25)) };
+        Assert.True(new Detector(cfg, lib, ocr).Detect(frame, "t").Found);
+        Assert.Equal(1, ocr.Calls);
+    }
+}
+
 public class TextAndRegionTests
 {
     private static OcrResult Line(params string[] words) =>

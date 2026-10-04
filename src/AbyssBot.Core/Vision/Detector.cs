@@ -140,7 +140,17 @@ public sealed class Detector : IDetector
 
         using var search = new Mat(frame, expanded);
         using var result = new Mat();
-        Cv2.MatchTemplate(search, tpl, result, TemplateMatchModes.CCoeffNormed);
+        if (img.WhiteText is { } wt)
+        {
+            // 글자 뒤 배경이 바뀌어도 맞도록 순백색 글자 픽셀만 비교한다.
+            using var sMask = WhiteText.Mask(search, wt);
+            using var tMask = WhiteText.Mask(tpl, wt);
+            Cv2.MatchTemplate(sMask, tMask, result, TemplateMatchModes.CCoeffNormed);
+        }
+        else
+        {
+            Cv2.MatchTemplate(search, tpl, result, TemplateMatchModes.CCoeffNormed);
+        }
 
         // 결과 위치 (x,y)의 사진 중심 = expanded.X + x + tw/2. 중심이 region 안인 위치만 남긴다.
         int x0 = Math.Max(0, region.X - expanded.X - tw / 2);
@@ -182,6 +192,20 @@ public sealed class Detector : IDetector
             if (matches.Count == 0 && m2.Count > 0) { matches = m2; upscaled = true; }
             else if (rule.MinDistinct > 0 && merged.Count > distinct.Count) upscaled = true;
             distinct = merged;
+            satisfied = rule.MinDistinct > 0 ? distinct.Count >= rule.MinDistinct : matches.Count > 0;
+        }
+
+        if (!satisfied && rule.WhiteText is { } wt)
+        {
+            // 흰 글자만 남긴 흑백 그림(2배)으로 한 번 더 읽는다. 밝은 배경에 겹친 흰 문구용.
+            using var clean = WhiteText.ForOcr(crop, wt);
+            using var big2 = new Mat();
+            Cv2.Resize(clean, big2, new Size(crop.Width * 2, crop.Height * 2), 0, 0, InterpolationFlags.Cubic);
+            var raw3 = _ocr.Recognize(big2).Scale(0.5, region.Location);
+            var (m3, d3) = Collect(raw3, rule);
+            rawText += " ‖흰글자: " + raw3.AllText;
+            if (matches.Count == 0 && m3.Count > 0) { matches = m3; upscaled = true; }
+            distinct = distinct.Union(d3, StringComparer.Ordinal).ToList();
         }
 
         var matched = rule.MinDistinct > 0 ? distinct.Count >= rule.MinDistinct : matches.Count > 0;

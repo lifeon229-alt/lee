@@ -75,6 +75,11 @@ public sealed class OcrRule
     /// 0이면 Texts 중 하나만 맞으면 된다. 1 이상이면 서로 다른 Texts가 이 개수 이상 확인돼야 한다(메뉴 열림 판정).
     /// </summary>
     public int MinDistinct { get; set; }
+
+    /// <summary>
+    /// 설정하면 원본·2배 확대로 못 찾았을 때 한 번 더, 순백색 글자만 남긴 흑백 그림(흰 바탕 검은 글자, 2배)으로 읽는다.
+    /// </summary>
+    public WhiteTextSpec? WhiteText { get; set; }
 }
 
 public sealed class ImageRef
@@ -82,6 +87,19 @@ public sealed class ImageRef
     public string File { get; set; } = "";
     /// <summary>null이면 DefaultImageThreshold.</summary>
     public double? Threshold { get; set; }
+
+    /// <summary>
+    /// 설정하면 사진과 탐색 영역을 모두 '순백색 글자 픽셀만 남긴 흑백 그림'으로 바꾼 뒤 비교한다.
+    /// 글자 뒤 배경(캐릭터·맵)이 매번 바뀌는 안내 문구용.
+    /// </summary>
+    public WhiteTextSpec? WhiteText { get; set; }
+}
+
+/// <summary>순백색 글자 판정: 세 채널 중 최솟값 ≥ Min 이고 (최댓값-최솟값) ≤ Spread 인 픽셀.</summary>
+public sealed class WhiteTextSpec
+{
+    public int Min { get; set; } = 235;
+    public int Spread { get; set; } = 30;
 }
 
 public sealed class ColorRule
