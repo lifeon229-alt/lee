@@ -96,7 +96,7 @@ public sealed class TimingSpec
     public int TransitionWaitMs { get; set; } = 3000;
 
     /// <summary>난이도·혼자/함께 클릭 후 화면이 다시 그려질 때까지 기다리는 시간. 선택 확인은 이 간격의 절반씩 두 번.</summary>
-    public int OptionSettleMs { get; set; } = 1500;
+    public int OptionSettleMs { get; set; } = 750;
 
     public IntRange SkipSettleMs { get; set; } = new(250, 350);
     public int SkipMinIntervalMs { get; set; } = 1000;

@@ -123,10 +123,10 @@
       "passScore": 3
     },
     "result_touch": {
-      "description": "결과 화면 하단 중앙 '화면을 터치해 주세요': '터치해' OCR 또는 touch.png (2점). 색상 미사용. 흰 글자가 캐릭터 위에 겹쳐 대비가 낮으므로 사진·OCR 모두 순백색 글자 픽셀만 남겨 비교(whiteText). 사용자 캡처: 결과 화면 1.000, 메인·목록 화면 0.21~0.22 → 기준 0.80",
+      "description": "결과 화면 하단 중앙 '화면을 터치해 주세요': '터치해' OCR 또는 touch.png (2점). 색상 미사용. 흰 글자가 캐릭터 위에 겹쳐 대비가 낮으므로 사진·OCR 모두 순백색 글자 픽셀만 남겨 비교(whiteText). 사용자 캡처: 결과 화면 1.000(실사용 0.81~0.97, 연출 효과가 가리면 더 낮음), 메인·목록·보상 화면 0.18~0.22 → 기준 0.70. 클릭 직전 효과에 잠깐 가려져도 정지하지 않고 다시 보일 때까지 대기",
       "region": [700, 970, 1220, 1040],
       "ocr": { "texts": ["터치해"], "mode": "contains", "whiteText": { "min": 235, "spread": 30 } },
-      "images": [ { "file": "touch.png", "threshold": 0.80, "whiteText": { "min": 235, "spread": 30 } } ],
+      "images": [ { "file": "touch.png", "threshold": 0.70, "whiteText": { "min": 235, "spread": 30 } } ],
       "passScore": 2
     },
     "replay": {

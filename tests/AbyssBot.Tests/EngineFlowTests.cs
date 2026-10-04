@@ -117,6 +117,22 @@ public class EngineFlowTests
     }
 
     [Fact]
+    public void Result_phrase_hidden_by_effect_right_before_click_is_waited_not_failed()
+    {
+        // 실제 오류 재현: 결과 문구 확인 직후 연출 효과에 가려 한 번 안 보임
+        var rig = new Rig();
+        rig.Game.State = "battle";
+        rig.Game.BattleFramesLeft = 2;
+        int seen = 0;
+        rig.Game.Flicker = (n, id) => id == TargetIds.ResultTouch && ++seen == 2;
+        rig.Time.CancelWhen = () => rig.Game.State == "reward";
+        var r = rig.Run(StepId.WaitResult);
+        Assert.Equal(RunOutcome.UserStopped, r.Outcome);
+        Assert.Equal(new[] { "click:result_touch" }, rig.Game.Inputs);
+        Assert.Contains(rig.Lines, l => l.Contains("잠깐 가려짐"));
+    }
+
+    [Fact]
     public void No_result_clicks_during_battle()
     {
         var rig = new Rig();

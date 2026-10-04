@@ -411,7 +411,9 @@ public sealed class AbyssEngine
         while (true)
         {
             if (_clock.Now > deadline)
-                return StepResult.Fail("결과 화면 처리 시간 초과");
+                return StepResult.Fail(clicks == 0
+                    ? $"결과 문구를 확인한 뒤 {T.GeneralButtonTimeoutMs / 1000}초 동안 다시 확인되지 않음"
+                    : "결과 화면 처리 시간 초과");
             if (clicks > T.MaxRetries)
                 return StepResult.Fail($"결과 화면을 {clicks}번 눌렀지만 '화면을 터치해 주세요'가 남아 있음");
             using (var cap = CaptureFrame(out var fatal))
@@ -422,7 +424,13 @@ public sealed class AbyssEngine
                 d = Detect(cap, TargetIds.ResultTouch);
                 if (!d.Found)
                 {
-                    if (clicks == 0) return StepResult.Fail($"결과 문구가 클릭 직전에 사라짐: {d.Summary()}");
+                    if (clicks == 0)
+                    {
+                        // 클리어 연출 효과가 문구를 잠깐 가릴 수 있다 → 실패로 보지 않고 다시 보일 때까지 기다린다.
+                        LogOnce("touch-hidden", $"결과 문구가 잠깐 가려짐 — 다시 보일 때까지 대기: {d.Summary()}");
+                        Wait(T.PollIntervalMs);
+                        continue;
+                    }
                     // 이미 넘어갔을 수 있다 → 아래 확인 단계에서 판단
                 }
                 else
@@ -520,7 +528,7 @@ public sealed class AbyssEngine
                 var r = SelectOne(o.id, o.label);
                 if (r.Outcome != StepOutcome.Success) return r;
             }
-            if (ConfirmSelected(order, out why))
+            if (ConfirmSelected(order, out why, captures: 1))
             {
                 _log.Info("난이도·방식 최종 확인 완료");
                 return StepResult.Ok;
@@ -535,10 +543,10 @@ public sealed class AbyssEngine
         Detect(cap, _destTitle).Found && Detect(cap, TargetIds.Enter).Found;
 
     /// <summary>모든 항목이 선택된 상태가 간격을 둔 두 캡처에서 연속으로 확인돼야 한다.</summary>
-    private bool ConfirmSelected((string id, string label)[] items, out string why)
+    private bool ConfirmSelected((string id, string label)[] items, out string why, int captures = 2)
     {
         why = "";
-        for (int k = 0; k < 2; k++)
+        for (int k = 0; k < captures; k++)
         {
             Wait(T.OptionSettleMs / 2);
             using var cap = CaptureFrame(out var fatal);
@@ -585,12 +593,12 @@ public sealed class AbyssEngine
                         if (d.Selected is null) return StepResult.Fail($"'{id}' 대상에 선택됨 판정 규칙(selected)이 없습니다.");
                         if (d.Selected == true)
                         {
-                            if (ConfirmSelected(new[] { (id, label) }, out _))
+                            if (ConfirmSelected(new[] { (id, label) }, out var unstable))
                             {
                                 _log.Info($"{label} 선택 확인{(clicks == 0 ? "(이미 선택돼 있어 누르지 않음)" : "")}: {d.Summary()}");
                                 return StepResult.Ok;
                             }
-                            _log.Warn($"'{label}' 선택 표시가 잠깐 보였지만 유지되지 않음 — 다시 판단");
+                            _log.Warn($"'{label}' 선택 확인 중 변화 감지 — 다시 판단 ({unstable})");
                             continue;
                         }
                         if (clicks > T.MaxRetries)
