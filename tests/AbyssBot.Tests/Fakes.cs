@@ -25,6 +25,13 @@ public sealed class FakeGame
     /// <summary>입장 화면에 보이는 난이도 버튼(지옥2가 표시된 경우 등은 hell1을 빼서 흉내).</summary>
     public HashSet<string> DifficultyButtons = new() { "difficulty_intro", "difficulty_hard", "difficulty_veryhard", "difficulty_hell1" };
     public bool OptionClicksIgnored;
+    /// <summary>탭 클릭 직후 잠깐 선택된 것처럼 보이는 캡처 수(실제 선택은 안 바뀜).</summary>
+    public int FlashCapturesOnClick;
+    public string? FlashTarget;
+    public int FlashLeft;
+    /// <summary>탭 클릭 뒤 입장 화면이 다시 그려지는 동안(제목·입장하기 안 보임) 캡처 수.</summary>
+    public int RedrawCapturesOnPartyClick;
+    public int RedrawLeft;
     /// <summary>다른 던전 가기 후 나타나는 화면(기본: 직전 목적지 선택 + 입장하기).</summary>
     public string AfterOtherDungeon = "destList";
     public readonly List<string> Inputs = new();
@@ -69,6 +76,12 @@ public sealed class FakeGame
             "unknown" => new HashSet<string>(),
             _ => new HashSet<string>(),
         };
+        if (State is "destSelected" && RedrawLeft > 0)
+        {
+            v.Remove("dest_title_husang"); v.Remove(TargetIds.Enter);
+            v.UnionWith(Extra);
+            return v;
+        }
         if (State is "destSelected")
         {
             v.UnionWith(DifficultyButtons);
@@ -81,6 +94,8 @@ public sealed class FakeGame
     public void OnCapture()
     {
         Captures++;
+        if (FlashLeft > 0) FlashLeft--;
+        if (RedrawLeft > 0) RedrawLeft--;
         if (State == "battle" && --BattleFramesLeft <= 0) State = "result";
     }
 
@@ -106,6 +121,11 @@ public sealed class FakeGame
             case ("reward", TargetIds.OtherDungeon): State = AfterOtherDungeon; break;
         }
         if (hit == TargetIds.Skip) Extra.Remove(TargetIds.Skip);
+        if (State == "destSelected" && FlashCapturesOnClick > 0 && hit.StartsWith("party_"))
+        {
+            FlashTarget = hit; FlashLeft = FlashCapturesOnClick + 1;
+        }
+        if (State == "destSelected" && hit.StartsWith("party_") && RedrawCapturesOnPartyClick > 0) RedrawLeft = RedrawCapturesOnPartyClick + 1;
         if (State == "destSelected" && !OptionClicksIgnored)
         {
             if (hit.StartsWith("difficulty_")) SelectedDifficulty = hit;
@@ -130,7 +150,7 @@ public sealed class FakeDetector(FakeGame game) : IDetector
         bool found = visible.Contains(id);
         if (found && game.Flicker?.Invoke(game.Captures, id) == true) found = false;
         bool? selected = id.StartsWith("difficulty_") ? game.SelectedDifficulty == id
-            : id.StartsWith("party_") ? game.SelectedParty == id : null;
+            : id.StartsWith("party_") ? game.SelectedParty == id || (game.FlashLeft > 0 && game.FlashTarget == id) : null;
         return new Detection
         {
             TargetId = id, Found = found, Score = found ? 2 : 0, PassScore = 2,

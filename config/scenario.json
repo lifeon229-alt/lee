@@ -28,6 +28,7 @@
     "escSettleMs": 700,
     "enterDelayMs": 1000,
     "transitionWaitMs": 3000,
+    "optionSettleMs": 1500,
     "skipSettleMs": [250, 350],
     "skipMinIntervalMs": 1000,
     "reviveMinIntervalMs": 4000,

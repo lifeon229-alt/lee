@@ -51,6 +51,35 @@ public class OptionFlowTests
     }
 
     [Fact]
+    public void Momentary_selected_flash_is_not_taken_as_selected()
+    {
+        // 실제 오류 재현: 함께하기를 눌렀을 때 한 프레임만 선택된 것처럼 보이고 실제로는 혼자하기 유지
+        var rig = new Rig();
+        rig.Scenario.Options.PartyMode = "together";
+        rig.Scenario.Options.Difficulty = "veryHard";
+        rig.Game.SelectedParty = "party_solo";
+        rig.Game.OptionClicksIgnored = true;
+        rig.Game.FlashCapturesOnClick = 1;
+        var r = rig.Run();
+        Assert.Equal(RunOutcome.Failed, r.Outcome);
+        Assert.Equal(StepId.SelectOptions, r.Step);
+        Assert.DoesNotContain("SPACE", rig.Game.Inputs);
+        Assert.DoesNotContain("click:difficulty_veryhard", rig.Game.Inputs); // 방식이 확인되기 전에는 난이도로 넘어가지 않음
+    }
+
+    [Fact]
+    public void Waits_for_entry_screen_redraw_after_party_click()
+    {
+        var rig = new Rig();
+        rig.Scenario.Options.PartyMode = "solo";
+        rig.Scenario.Options.Difficulty = "hard";
+        rig.Game.RedrawCapturesOnPartyClick = 3;
+        rig.Time.CancelWhen = () => rig.Game.State == "battle";
+        rig.Run();
+        Assert.Equal(new[] { "ESC", "click:abyss_menu", "click:dest_husang", "click:party_solo", "click:difficulty_hard", "SPACE" }, rig.Game.Inputs);
+    }
+
+    [Fact]
     public void Hell1_missing_stops_without_clicking_anything_on_entry_screen()
     {
         var rig = new Rig();

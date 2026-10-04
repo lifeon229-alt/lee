@@ -501,7 +501,8 @@ public sealed class AbyssEngine
 
     /// <summary>
     /// 최초 입장 화면에서 혼자하기/함께하기 → 난이도 순으로 고른다(방식에 따라 난이도 버튼이 달라지므로 방식 먼저).
-    /// 고르지 않은 항목은 현재 상태 유지. 끝으로 고른 항목이 모두 선택돼 있는지 다시 확인한다.
+    /// 고르지 않은 항목은 현재 상태 유지. 끝으로 고른 항목이 모두 선택돼 있는지 연속 확인하고,
+    /// 유지되지 않았으면 한 번 더 처음부터 고른다.
     /// </summary>
     private StepResult SelectOptions()
     {
@@ -510,30 +511,52 @@ public sealed class AbyssEngine
             _log.Info("난이도·방식: 선택 안 함(게임의 현재 상태 유지)");
             return StepResult.Ok;
         }
-        var order = new[] { _party, _difficulty };
-        foreach (var opt in order)
+        var order = new[] { _party, _difficulty }.Where(o => o is not null).Select(o => o!.Value).ToArray();
+        string why = "";
+        for (int round = 1; round <= 2; round++)
         {
-            if (opt is not { } o) continue;
-            var r = SelectOne(o.id, o.label);
-            if (r.Outcome != StepOutcome.Success) return r;
+            foreach (var o in order)
+            {
+                var r = SelectOne(o.id, o.label);
+                if (r.Outcome != StepOutcome.Success) return r;
+            }
+            if (ConfirmSelected(order, out why))
+            {
+                _log.Info("난이도·방식 최종 확인 완료");
+                return StepResult.Ok;
+            }
+            _log.Warn($"최종 확인 실패({round}/2): {why}" + (round < 2 ? " — 처음부터 다시 선택" : ""));
         }
-        // 최종 확인: 나중 선택이 앞 선택을 바꾸지 않았는지
-        Wait(T.PostInputCheckMs);
-        using var cap = CaptureFrame(out var fatal);
-        if (fatal is not null) return StepResult.Fail(fatal);
-        if (cap is null) return StepResult.Fail("최종 확인 때 게임 창이 비활성");
-        foreach (var opt in order)
+        return StepResult.Fail($"최종 확인: 선택이 유지되지 않음 — 입장하지 않고 정지. {why}");
+    }
+
+    /// <summary>입장 화면이 다 그려진 상태인지(전환 중이 아닌지): 잠긴 목적지 제목과 입장하기가 함께 보여야 한다.</summary>
+    private bool EntryScreenReady(Frame cap) =>
+        Detect(cap, _destTitle).Found && Detect(cap, TargetIds.Enter).Found;
+
+    /// <summary>모든 항목이 선택된 상태가 간격을 둔 두 캡처에서 연속으로 확인돼야 한다.</summary>
+    private bool ConfirmSelected((string id, string label)[] items, out string why)
+    {
+        why = "";
+        for (int k = 0; k < 2; k++)
         {
-            if (opt is not { } o) continue;
-            var d = Detect(cap, o.id);
-            if (d.Selected != true) return StepResult.Fail($"최종 확인: '{o.label}' 선택이 유지되지 않음 — 입장하지 않고 정지. {d.Summary()}");
+            Wait(T.OptionSettleMs / 2);
+            using var cap = CaptureFrame(out var fatal);
+            if (fatal is not null) { why = fatal; return false; }
+            if (cap is null) { why = "게임 창 비활성"; return false; }
+            if (!EntryScreenReady(cap)) { why = "입장 화면이 아직 전환 중"; return false; }
+            foreach (var o in items)
+            {
+                var d = Detect(cap, o.id);
+                if (d.Selected != true) { why = $"'{o.label}' 선택 안 됨. {d.Summary()}"; return false; }
+            }
         }
-        _log.Info("난이도·방식 최종 확인 완료");
-        return StepResult.Ok;
+        return true;
     }
 
     /// <summary>
-    /// 선택형 버튼 하나: 이미 선택돼 있으면 누르지 않는다. 아니면 글자 위치를 누르고 선택 표시가 나타날 때까지 확인(재시도 제한).
+    /// 선택형 버튼 하나. 입장 화면이 다 그려진 뒤에만 판단한다. 이미 선택돼 있으면(연속 확인) 누르지 않는다.
+    /// 아니면 글자 위치를 누르고, 화면 전환이 끝날 때까지 기다린 뒤 다시 판단한다(재시도 제한).
     /// </summary>
     private StepResult SelectOne(string id, string label)
     {
@@ -551,20 +574,30 @@ public sealed class AbyssEngine
                     if (aux.Acted) continue;
                     if (aux.Blocked) goto next;
 
+                    if (!EntryScreenReady(cap))
+                    {
+                        LogOnce("opt-ready-" + id, $"입장 화면 전환 중 — '{label}' 판단 대기");
+                        goto next;
+                    }
                     var d = Detect(cap, id);
                     if (d.Found)
                     {
                         if (d.Selected is null) return StepResult.Fail($"'{id}' 대상에 선택됨 판정 규칙(selected)이 없습니다.");
                         if (d.Selected == true)
                         {
-                            _log.Info($"{label} 선택 확인{(clicks == 0 ? "(이미 선택돼 있어 누르지 않음)" : "")}: {d.Summary()}");
-                            return StepResult.Ok;
+                            if (ConfirmSelected(new[] { (id, label) }, out _))
+                            {
+                                _log.Info($"{label} 선택 확인{(clicks == 0 ? "(이미 선택돼 있어 누르지 않음)" : "")}: {d.Summary()}");
+                                return StepResult.Ok;
+                            }
+                            _log.Warn($"'{label}' 선택 표시가 잠깐 보였지만 유지되지 않음 — 다시 판단");
+                            continue;
                         }
                         if (clicks > T.MaxRetries)
                             return StepResult.Fail($"'{label}'을(를) {clicks}번 눌렀지만 선택 표시가 확인되지 않음: {d.Summary()}");
                         if (!SendClick(cap, d, label, out var why)) return StepResult.Fail(why);
                         clicks++;
-                        Wait(T.PostInputCheckMs);
+                        Wait(T.OptionSettleMs); // 탭 전환 등 화면이 다시 그려질 시간
                         continue;
                     }
                     LogOnce("opt-wait-" + id, $"'{label}' 찾는 중: {d.Summary()}");
@@ -572,7 +605,7 @@ public sealed class AbyssEngine
             }
             next:
             if (_clock.Now > deadline)
-                return StepResult.Fail($"{T.GeneralButtonTimeoutMs / 1000}초 동안 '{label}' 글자를 찾지 못함 — 다른 곳은 누르지 않고 정지");
+                return StepResult.Fail($"{T.GeneralButtonTimeoutMs / 1000}초 동안 '{label}'을(를) 확인하지 못함 — 다른 곳은 누르지 않고 정지");
             Wait(T.PollIntervalMs);
         }
     }
